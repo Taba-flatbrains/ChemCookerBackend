@@ -1,7 +1,3 @@
-STR_START_CHEMS = ";".join(
-    Chemical(i).to_str() for i in ["[Ca++].[O-]C([O-])=O", "O=O", "CC(=O)O", "O"]
-)
-
 class Chemical():
     smiles: str
     iupac: str
@@ -29,3 +25,7 @@ class Chemical():
     
 def get_iupac_from_smiles(smiles: str) -> str:
     return "iupac"  # placeholder
+
+STR_START_CHEMS = ";".join(
+    Chemical(i).to_str() for i in ["[Ca++].[O-]C([O-])=O", "O=O", "CC(=O)O", "O"]
+)
