@@ -81,7 +81,7 @@ def login(r: LoginRequest, session: SessionDep) -> LoginResponse:
     hashed_pw = user.password
     if (pbkdf2_sha256.verify(r.password, hashed_pw)):
         token = str(uuid4())
-        user.token = pbkdf2_sha256.hash(token)
+        user.token = hashlib.sha256(token.encode('utf-8')).hexdigest()
         session.add(user)
         session.commit() # todo: check if updating token works like this
         return LoginResponse(token=token, success=True)
