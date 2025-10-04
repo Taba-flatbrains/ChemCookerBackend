@@ -59,7 +59,7 @@ SessionDep = Annotated[Session, Depends(get_session)]
 def signup(r: SignupRequest, session: SessionDep) -> SignupResponse:
     token = str(uuid4())
     session.add(User(
-        name=r.name,
+        name=r.username,
         email=r.email,
         password=r.password, # todo: hash password
         skillpoints=0,
