@@ -19,3 +19,6 @@ class LoginResponse(BaseModel):
 
 class ValidTokenResponse(BaseModel):
     valid: bool
+
+class AvailableChemsResponse(BaseModel):
+    chemicals: list[dict]
