@@ -36,6 +36,13 @@ class User(SQLModel, table=True):
     nicknames: Dict = Field(default_factory=dict, sa_column=Column(JSON)) # dict of smiles to nicknames
     token: Optional[str] = None
 
+class Reaction():
+    pass
+
+class ChemicalDefaultIdentifiers(SQLModel, table=True):
+    smile: str = Field(primary_key=True)
+    iupac: str 
+    nickname : str
 
 
 sqlite_file_name = "database.db"
@@ -101,7 +108,14 @@ def getAvailableChems(token: Annotated[str | None, Cookie()], session: SessionDe
         raise HTTPException(status_code=404, detail="User not found, login and signin seemed to have failed / token missing")
     
     smiles = user.unlocked_chemicals.split(";")
-    chemicals = [Chemical(i) for i in smiles]
+    # default iupac and nickname
+    default_identifiers : list[ChemicalDefaultIdentifiers] = []
+    for smile in smiles:
+        default_identifiers.append(session.get(ChemicalDefaultIdentifiers, smile))
+        if (default_identifiers[-1] is None):
+            default_identifiers[-1] = ChemicalDefaultIdentifiers(iupac=":(", nickname=":(")  # todo: autogen
+    chemicals = [Chemical(smiles[i], default_identifiers[i].iupac, default_identifiers[i].nickname) for i in range(len(smiles))]
+    
 
     # change nickname
     nicknames = user.nicknames
