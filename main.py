@@ -113,6 +113,13 @@ def validatetoken(token: Annotated[str | None, Cookie()], session: SessionDep) -
         return ValidTokenResponse(valid=False)
     return ValidTokenResponse(valid=True)
 
+@app.get("/admin-validatetoken/")
+def admin_validatetoken(token: Annotated[str | None, Cookie()], session: SessionDep) -> ValidTokenResponse:
+    admin = session.get(AdminToken, hashlib.sha256(token.encode('utf-8')).hexdigest()) 
+    if admin is None:
+        return ValidTokenResponse(valid=False)
+    return ValidTokenResponse(valid=True)
+
 @app.get("/availablechems")
 def getAvailableChems(token: Annotated[str | None, Cookie()], session: SessionDep) -> AvailableChemsResponse:
     try:
