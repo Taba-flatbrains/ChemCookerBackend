@@ -2,6 +2,7 @@ from typing import Annotated, Union, List, Optional, Dict
 from uuid import uuid4
 from NetTypes import *
 from Chemical import STR_START_CHEMS, Chemical
+from hidden_constants import ADMIN_PASSWORD_HASH
 
 from fastapi import FastAPI, Depends, Cookie, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -35,6 +36,9 @@ class User(SQLModel, table=True):
     unlocked_chemicals: str # string of smiles seperated by ;
     nicknames: Dict = Field(default_factory=dict, sa_column=Column(JSON)) # dict of smiles to nicknames
     token: Optional[str] = None
+
+class AdminToken(SQLModel, table=True):
+    token: str = Field(primary_key=True) # todo: set expire date
 
 class Reaction():
     pass
@@ -89,6 +93,15 @@ def login(r: LoginRequest, session: SessionDep) -> LoginResponse:
         session.commit()
         return LoginResponse(token=token, success=True)
     return LoginResponse(token="", success=False)
+
+@app.post("/admin-login")
+def admin_login(r: AdminLoginRequest) -> AdminLoginResponse:
+    if not pbkdf2_sha256.verify(r.password, ADMIN_PASSWORD_HASH):
+        return AdminLoginResponse(success=False)
+    token = str(uuid4())
+    Session.add(AdminToken(token=hashlib.sha256(token.encode('utf-8')).hexdigest()))
+    Session.commit()
+    return AdminLoginResponse(success=True, token=token)
 
 
 # get requests

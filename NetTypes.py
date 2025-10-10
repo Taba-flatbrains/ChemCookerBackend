@@ -22,3 +22,9 @@ class ValidTokenResponse(BaseModel):
 
 class AvailableChemsResponse(BaseModel):
     chemicals: list[dict]
+
+class AdminLoginRequest(BaseModel):
+    admin_password: str
+class AdminLoginResponse(BaseModel):
+    success: bool
+    token: Optional[str] = None
