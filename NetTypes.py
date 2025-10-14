@@ -28,3 +28,8 @@ class AdminLoginRequest(BaseModel):
 class AdminLoginResponse(BaseModel):
     success: bool
     token: Optional[str] = None
+
+class SetDefaultChemicalIdentifiersRequest(BaseModel):
+    smile : str
+    iupac : str
+    nickname : str

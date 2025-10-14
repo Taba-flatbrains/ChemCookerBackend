@@ -103,9 +103,17 @@ def admin_login(r: AdminLoginRequest) -> AdminLoginResponse:
     Session.commit()
     return AdminLoginResponse(success=True, token=token)
 
+@app.post("/set-default-chemical-identifiers")
+def set_default_chemical_identifiers(r: SetDefaultChemicalIdentifiersRequest, session: SessionDep):
+    if not pbkdf2_sha256.verify(r.password, ADMIN_PASSWORD_HASH):  # no valid admin session
+        return 
+    session.add(ChemicalDefaultIdentifiers(smile=r.smile, iupac=r.iupac, nickname=r.nickname)) # todo: set option to override previous default identifier
+    session.commit()
+    return
+
 
 # get requests
-@app.get("/validatetoken/") 
+@app.get("/validatetoken") 
 def validatetoken(token: Annotated[str | None, Cookie()], session: SessionDep) -> ValidTokenResponse:
     try:
         user = session.exec(select(User).where(User.token == hashlib.sha256(token.encode('utf-8')).hexdigest())).one() # if no error is thrown session is valid
@@ -113,7 +121,7 @@ def validatetoken(token: Annotated[str | None, Cookie()], session: SessionDep) -
         return ValidTokenResponse(valid=False)
     return ValidTokenResponse(valid=True)
 
-@app.get("/admin-validatetoken/")
+@app.get("/admin-validatetoken")
 def admin_validatetoken(token: Annotated[str | None, Cookie()], session: SessionDep) -> ValidTokenResponse:
     admin = session.get(AdminToken, hashlib.sha256(token.encode('utf-8')).hexdigest()) 
     if admin is None:
