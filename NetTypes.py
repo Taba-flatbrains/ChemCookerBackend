@@ -24,7 +24,7 @@ class AvailableChemsResponse(BaseModel):
     chemicals: list[dict]
 
 class AdminLoginRequest(BaseModel):
-    admin_password: str
+    password: str
 class AdminLoginResponse(BaseModel):
     success: bool
     token: Optional[str] = None

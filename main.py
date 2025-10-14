@@ -95,12 +95,12 @@ def login(r: LoginRequest, session: SessionDep) -> LoginResponse:
     return LoginResponse(token="", success=False)
 
 @app.post("/admin-login")
-def admin_login(r: AdminLoginRequest) -> AdminLoginResponse:
+def admin_login(r: AdminLoginRequest, session: SessionDep) -> AdminLoginResponse:
     if not pbkdf2_sha256.verify(r.password, ADMIN_PASSWORD_HASH):
         return AdminLoginResponse(success=False)
     token = str(uuid4())
-    Session.add(AdminToken(token=hashlib.sha256(token.encode('utf-8')).hexdigest()))
-    Session.commit()
+    session.add(AdminToken(token=hashlib.sha256(token.encode('utf-8')).hexdigest()))
+    session.commit()
     return AdminLoginResponse(success=True, token=token)
 
 @app.post("/set-default-chemical-identifiers")
