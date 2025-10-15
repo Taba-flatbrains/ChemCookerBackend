@@ -104,12 +104,13 @@ def admin_login(r: AdminLoginRequest, session: SessionDep) -> AdminLoginResponse
     return AdminLoginResponse(success=True, token=token)
 
 @app.post("/set-default-chemical-identifiers")
-def set_default_chemical_identifiers(r: SetDefaultChemicalIdentifiersRequest, session: SessionDep):
-    if not pbkdf2_sha256.verify(r.password, ADMIN_PASSWORD_HASH):  # no valid admin session
-        return 
+def set_default_chemical_identifiers(token: Annotated[str | None, Cookie()], r: SetDefaultChemicalIdentifiersRequest, session: SessionDep):
+    admin = session.get(AdminToken, hashlib.sha256(token.encode('utf-8')).hexdigest()) # check for valid admin session
+    if admin is None:
+        return False
     session.add(ChemicalDefaultIdentifiers(smile=r.smile, iupac=r.iupac, nickname=r.nickname)) # todo: set option to override previous default identifier
     session.commit()
-    return
+    return True
 
 
 # get requests
