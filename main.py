@@ -41,7 +41,10 @@ class AdminToken(SQLModel, table=True):
     token: str = Field(primary_key=True) # todo: set expire date
 
 class Reaction():
-    pass
+    inputs: str # string of smiles seperated by ;
+    outputs: str # string of smiles seperated by ;
+    temp: int # 0: cooling, 1: rt, 2: reflux, 3: pyrolysis
+    uv: bool # on/off
 
 class ChemicalDefaultIdentifiers(SQLModel, table=True):
     smile: str = Field(primary_key=True)
@@ -153,4 +156,12 @@ def getAvailableChems(token: Annotated[str | None, Cookie()], session: SessionDe
 
     return {"chemicals":list([chemical.to_dict() for chemical in chemicals])}
 
-
+@app.get("/all-chems") # admin only
+def getAllChems(token: Annotated[str | None, Cookie()], session: SessionDep) -> AvailableChemsResponse: 
+    admin = session.get(AdminToken, hashlib.sha256(token.encode('utf-8')).hexdigest()) 
+    if admin is None:
+        raise HTTPException(status_code=404, detail="Admin token invalid")
+    
+    all_default_identifiers = session.exec(select(ChemicalDefaultIdentifiers)).all()
+    chemicals = [Chemical(chem.smile, chem.iupac, chem.nickname) for chem in all_default_identifiers]
+    return {"chemicals":list([chemical.to_dict() for chemical in chemicals])}
