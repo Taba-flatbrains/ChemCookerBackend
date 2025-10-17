@@ -21,5 +21,5 @@ class Chemical():
 # todo: check if chemicals are the same (there are many ways to display one chemical as a smile)
 
 STR_START_CHEMS = ";".join(
-    Chemical(i).smile for i in ["[Ca++].[O-]C([O-])=O", "O=O", "CC(=O)O", "O"]
+    Chemical(i).smile for i in ["[Ca+2].[O-]C([O-])=O", "O=O", "CC(=O)O", "O"]
 )
