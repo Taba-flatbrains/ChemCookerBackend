@@ -40,10 +40,11 @@ class User(SQLModel, table=True):
 class AdminToken(SQLModel, table=True):
     token: str = Field(primary_key=True) # todo: set expire date
 
-class Reaction():
+class Reaction(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
     inputs: str # string of smiles seperated by ;
     outputs: str # string of smiles seperated by ;
-    temp: int # 0: cooling, 1: rt, 2: reflux, 3: pyrolysis
+    temp: int # 4 "bits": XXXX, 0001: cold, 0010: rt, 0100: reflux, 1000: pyrolysis, multiple can be set
     uv: bool # on/off
 
 class ChemicalDefaultIdentifiers(SQLModel, table=True):
@@ -114,6 +115,18 @@ def set_default_chemical_identifiers(token: Annotated[str | None, Cookie()], r: 
     session.add(ChemicalDefaultIdentifiers(smile=r.smile, iupac=r.iupac, nickname=r.nickname)) # todo: set option to override previous default identifier
     session.commit()
     return
+
+@app.post("/submitreaction")  # todo: add option to change reaction
+def submit_reaction(token: Annotated[str | None, Cookie()], r: SubmitReactionRequest, session: SessionDep):
+    admin = session.get(AdminToken, hashlib.sha256(token.encode('utf-8')).hexdigest()) 
+    if admin is None:
+        raise HTTPException(status_code=404, detail="Admin token invalid")
+    session.add(Reaction(
+        inputs=";".join([chem["smile"] for chem in r.inputs]),
+        outputs=";".join([chem["smile"] for chem in r.outputs]),
+        temp=r.temp,
+        uv=r.uv))
+    session.commit()
 
 
 # get requests

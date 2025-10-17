@@ -33,3 +33,9 @@ class SetDefaultChemicalIdentifiersRequest(BaseModel):
     smile : str
     iupac : str
     nickname : str
+
+class SubmitReactionRequest(BaseModel):
+    inputs: list[dict]
+    outputs: list[dict]
+    temp: int
+    uv : bool
