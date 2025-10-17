@@ -159,7 +159,7 @@ def cook(token: Annotated[str | None, Cookie()], r: CookRequest, session: Sessio
             user.unlocked_chemicals = ";".join(user_chemicals)
             session.add(user)
             session.commit()
-            return CookResponse(success=True, new_chemicals=new_chemicals)
+            return CookResponse(success=True, new_chemicals=[chem.toDict() for chem in getChemsFromSmilesList(new_chemicals, session)])
     
     return CookResponse(success=False, new_chemicals=[]) # reaction not found
 
@@ -188,14 +188,7 @@ def getAvailableChems(token: Annotated[str | None, Cookie()], session: SessionDe
         raise HTTPException(status_code=404, detail="User not found, login and signin seemed to have failed / token missing")
     
     smiles = user.unlocked_chemicals.split(";")
-    # default iupac and nickname
-    default_identifiers : list[ChemicalDefaultIdentifiers] = []
-    for smile in smiles:
-        default_identifiers.append(session.get(ChemicalDefaultIdentifiers, smile))
-        if (default_identifiers[-1] is None):
-            default_identifiers[-1] = ChemicalDefaultIdentifiers(iupac=":(", nickname=":(")  # todo: autogen
-    chemicals = [Chemical(smiles[i], default_identifiers[i].iupac, default_identifiers[i].nickname) for i in range(len(smiles))]
-    
+    chemicals = getChemsFromSmilesList(smiles, session)
 
     # change nickname
     nicknames = user.nicknames
@@ -203,6 +196,15 @@ def getAvailableChems(token: Annotated[str | None, Cookie()], session: SessionDe
         chemicals[nickname_key].nickname = nicknames[nickname_key]
 
     return {"chemicals":list([chemical.to_dict() for chemical in chemicals])}
+
+def getChemsFromSmilesList(smiles: List[str], session: SessionDep) -> List[Chemical]:
+    default_identifiers : list[ChemicalDefaultIdentifiers] = []
+    for smile in smiles:
+        default_identifiers.append(session.get(ChemicalDefaultIdentifiers, smile))
+        if (default_identifiers[-1] is None):
+            default_identifiers[-1] = ChemicalDefaultIdentifiers(iupac=":(", nickname=":(")  # todo: autogen
+    chemicals = [Chemical(smiles[i], default_identifiers[i].iupac, default_identifiers[i].nickname) for i in range(len(smiles))]
+    return chemicals
 
 @app.get("/all-chems") # admin only
 def getAllChems(token: Annotated[str | None, Cookie()], session: SessionDep) -> AvailableChemsResponse: 
