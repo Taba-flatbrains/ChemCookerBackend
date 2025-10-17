@@ -107,7 +107,7 @@ def admin_login(r: AdminLoginRequest, session: SessionDep) -> AdminLoginResponse
     session.commit()
     return AdminLoginResponse(success=True, token=token)
 
-@app.post("/set-default-chemical-identifiers")
+@app.post("/set-default-chemical-identifiers")  # todo: add option to change nickname
 def set_default_chemical_identifiers(token: Annotated[str | None, Cookie()], r: SetDefaultChemicalIdentifiersRequest, session: SessionDep):
     admin = session.get(AdminToken, hashlib.sha256(token.encode('utf-8')).hexdigest()) # check for valid admin session
     if admin is None:
@@ -121,12 +121,47 @@ def submit_reaction(token: Annotated[str | None, Cookie()], r: SubmitReactionReq
     admin = session.get(AdminToken, hashlib.sha256(token.encode('utf-8')).hexdigest()) 
     if admin is None:
         raise HTTPException(status_code=404, detail="Admin token invalid")
+    #sort inputs and outputs to have a consistent order
+    r.inputs.sort(key=lambda chem: chem["smile"])
+    r.outputs.sort(key=lambda chem: chem["smile"])
     session.add(Reaction(
         inputs=";".join([chem["smile"] for chem in r.inputs]),
         outputs=";".join([chem["smile"] for chem in r.outputs]),
         temp=r.temp,
         uv=r.uv))
     session.commit()
+
+@app.post("/cook")
+def cook(token: Annotated[str | None, Cookie()], r: CookRequest, session: SessionDep) -> CookResponse:
+    try:
+        user = session.exec(select(User).where(User.token == hashlib.sha256(token.encode('utf-8')).hexdigest())).one() # if no error is thrown session is valid
+    except:
+        raise HTTPException(status_code=404, detail="User not found, login and signin seemed to have failed / token missing")
+    
+    # check if user has the input chemicals
+    user_chemicals = user.unlocked_chemicals.split(";")
+    for chem in r.inputs:
+        if chem not in user_chemicals:
+            return CookResponse(success=False, new_chemicals=[])
+
+    # find matching reaction
+    r.chemicals.sort(key=lambda chem: chem["smile"])
+    reactions = session.exec(select(Reaction).where(Reaction.inputs==";".join([chem["smile"] for chem in r.chemicals]))).all()
+    for reaction in reactions:
+        if reaction.temp == r.temp and reaction.uv == r.uv:
+            # successful reaction
+            output_chemicals = reaction.outputs.split(";")
+            new_chemicals = []
+            for chem in output_chemicals: # todo: check if this completes quest
+                if chem not in user_chemicals:
+                    user_chemicals.append(chem)
+                    new_chemicals.append(chem)
+            user.unlocked_chemicals = ";".join(user_chemicals)
+            session.add(user)
+            session.commit()
+            return CookResponse(success=True, new_chemicals=new_chemicals)
+    
+    return CookResponse(success=False, new_chemicals=[]) # reaction not found
 
 
 # get requests

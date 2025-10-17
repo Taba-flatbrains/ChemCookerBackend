@@ -39,3 +39,11 @@ class SubmitReactionRequest(BaseModel):
     outputs: list[dict]
     temp: int
     uv : bool
+
+class CookRequest(BaseModel):
+    chemicals: list[dict]
+    temp: int
+    uv: bool
+class CookResponse(BaseModel):
+    success: bool
+    products: list[dict]
