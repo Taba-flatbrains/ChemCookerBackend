@@ -140,13 +140,14 @@ def cook(token: Annotated[str | None, Cookie()], r: CookRequest, session: Sessio
     
     # check if user has the input chemicals
     user_chemicals = user.unlocked_chemicals.split(";")
-    for chem in r.inputs:
+    for chem in r.chemicals:
         if chem not in user_chemicals:
-            return CookResponse(success=False, new_chemicals=[])
+            return CookResponse(success=False, products=[])
 
     # find matching reaction
-    r.chemicals.sort(key=lambda chem: chem["smile"])
-    reactions = session.exec(select(Reaction).where(Reaction.inputs==";".join([chem["smile"] for chem in r.chemicals]))).all()
+    r.chemicals.sort()
+    print(";".join([chem for chem in r.chemicals]))
+    reactions = session.exec(select(Reaction).where(Reaction.inputs==";".join([chem for chem in r.chemicals]))).all()
     for reaction in reactions:
         if reaction.temp - r.temp > 0 and str(reaction.temp - r.temp).count("9") == 0 and reaction.uv == r.uv: # lazy way of validating temp
             # successful reaction
@@ -159,9 +160,9 @@ def cook(token: Annotated[str | None, Cookie()], r: CookRequest, session: Sessio
             user.unlocked_chemicals = ";".join(user_chemicals)
             session.add(user)
             session.commit()
-            return CookResponse(success=True, new_chemicals=[chem.toDict() for chem in getChemsFromSmilesList(new_chemicals, session)])
+            return CookResponse(success=True, products=[chem.to_dict() for chem in getChemsFromSmilesList(new_chemicals, session)])
     
-    return CookResponse(success=False, new_chemicals=[]) # reaction not found
+    return CookResponse(success=False, products=[]) # reaction not found
 
 
 # get requests
