@@ -46,6 +46,7 @@ class Reaction(SQLModel, table=True):
     outputs: str # string of smiles seperated by ;
     temp: int # 4 "bits": XXXX, 0001: cold, 0010: rt, 0100: reflux, 1000: pyrolysis, multiple can be set
     uv: bool # on/off
+    description: Optional[str] = None
 
 class ChemicalDefaultIdentifiers(SQLModel, table=True):
     smile: str = Field(primary_key=True)
