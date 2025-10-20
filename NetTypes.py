@@ -48,3 +48,9 @@ class CookResponse(BaseModel):
     success: bool
     products: list[dict]
     new_chems: Optional[list[dict]] = None
+    skillpoints_gained: int = 0
+    quests_completed: list[int] = [] # quest ids
+
+class AllQuestsResponse(BaseModel):
+    quests: list[dict]
+    completed_quests: list[int]

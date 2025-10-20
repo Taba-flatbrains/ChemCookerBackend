@@ -1,6 +1,7 @@
 from typing import Annotated, Union, List, Optional, Dict
 from uuid import uuid4
 from NetTypes import *
+from Quest import *
 from Chemical import STR_START_CHEMS, Chemical
 from hidden_constants import ADMIN_PASSWORD_HASH
 
@@ -36,6 +37,7 @@ class User(SQLModel, table=True):
     unlocked_chemicals: str # string of smiles seperated by ;
     nicknames: Dict = Field(default_factory=dict, sa_column=Column(JSON)) # dict of smiles to nicknames
     token: Optional[str] = None
+    completed_quests: str = "" # string of quest ids seperated by ;
 
 class AdminToken(SQLModel, table=True):
     token: str = Field(primary_key=True) # todo: set expire date
@@ -52,6 +54,14 @@ class ChemicalDefaultIdentifiers(SQLModel, table=True):
     smile: str = Field(primary_key=True)
     iupac: str 
     nickname : str
+
+class Quest(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    description: str
+    reward_skillpoints: int
+    reward_misc: Optional[str] = None # maybe special chemical or so
+    condition_type: str # "obtain_chemical", ...
+    condition_value: str # smile for "obtain_chemical", ...
 
 
 sqlite_file_name = "database.db"
@@ -153,15 +163,31 @@ def cook(token: Annotated[str | None, Cookie()], r: CookRequest, session: Sessio
             # successful reaction
             output_chemicals = reaction.outputs.split(";")
             new_chems = []
+
+            skillpoints_gained = 0
+            already_completed_quests = user.completed_quests.split(";") if user.completed_quests != "" else []
+            quests_completed = []
             for chem in output_chemicals: # todo: check if this completes quest
                 if chem not in user_chemicals:
                     user_chemicals.append(chem)
                     new_chems.append(chem)
+                completed_quests = session.exec(select(Quest).where(
+                    (Quest.condition_type == QuestConditionTypes.OBTAIN_CHEMICAL) & 
+                    (Quest.condition_value == chem)
+                )).all() # todo: give reward
+                for quest in completed_quests:
+                    if (str(quest.id) in already_completed_quests):
+                        continue # quest already completed
+                    user.skillpoints += quest.reward_skillpoints
+                    skillpoints_gained += quest.reward_skillpoints
+                    quests_completed.append(quest.id)
             user.unlocked_chemicals = ";".join(user_chemicals)
             session.add(user)
             session.commit()
             return CookResponse(success=True, products=[chem.to_dict() for chem in getChemsFromSmilesList(output_chemicals, session)], 
-                                new_chems=[chem.to_dict() for chem in getChemsFromSmilesList(new_chems, session)])
+                                new_chems=[chem.to_dict() for chem in getChemsFromSmilesList(new_chems, session)],
+                                skillpoints_gained=skillpoints_gained,
+                                quests_completed=quests_completed)
     
     return CookResponse(success=False, products=[], new_chems=[]) # reaction not found
 
@@ -217,3 +243,24 @@ def getAllChems(token: Annotated[str | None, Cookie()], session: SessionDep) -> 
     all_default_identifiers = session.exec(select(ChemicalDefaultIdentifiers)).all()
     chemicals = [Chemical(chem.smile, chem.iupac, chem.nickname) for chem in all_default_identifiers]
     return {"chemicals":list([chemical.to_dict() for chemical in chemicals])}
+
+@app.get("/all-quests")
+def getAllQuests(token: Annotated[str | None, Cookie()], session: SessionDep) -> AllQuestsResponse:
+    try:
+        user = session.exec(select(User).where(User.token == hashlib.sha256(token.encode('utf-8')).hexdigest())).one() # if no error is thrown session is valid
+    except:
+        raise HTTPException(status_code=404, detail="User not found, login and signin seemed to have failed / token missing")
+    
+    all_quests = session.exec(select(Quest)).all()
+    completed_quests = user.completed_quests.split(";") if user.completed_quests != "" else []
+    return AllQuestsResponse(
+        quests=[{
+            "id": quest.id,
+            "description": quest.description,
+            "reward_skillpoints": quest.reward_skillpoints,
+            "reward_misc": quest.reward_misc,
+            "condition_type": quest.condition_type,
+            "condition_value": quest.condition_value
+        } for quest in all_quests],
+        completed_quests=[int(qid) for qid in completed_quests]
+    )
