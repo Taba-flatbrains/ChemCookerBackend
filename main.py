@@ -143,27 +143,27 @@ def cook(token: Annotated[str | None, Cookie()], r: CookRequest, session: Sessio
     user_chemicals = user.unlocked_chemicals.split(";")
     for chem in r.chemicals:
         if chem not in user_chemicals:
-            return CookResponse(success=False, products=[])
+            return CookResponse(success=False, products=[], new_chems=[])
 
     # find matching reaction
     r.chemicals.sort()
-    print(";".join([chem for chem in r.chemicals]))
     reactions = session.exec(select(Reaction).where(Reaction.inputs==";".join([chem for chem in r.chemicals]))).all()
     for reaction in reactions:
         if reaction.temp - r.temp > 0 and str(reaction.temp - r.temp).count("9") == 0 and reaction.uv == r.uv: # lazy way of validating temp
             # successful reaction
             output_chemicals = reaction.outputs.split(";")
-            new_chemicals = []
+            new_chems = []
             for chem in output_chemicals: # todo: check if this completes quest
                 if chem not in user_chemicals:
                     user_chemicals.append(chem)
-                    new_chemicals.append(chem)
+                    new_chems.append(chem)
             user.unlocked_chemicals = ";".join(user_chemicals)
             session.add(user)
             session.commit()
-            return CookResponse(success=True, products=[chem.to_dict() for chem in getChemsFromSmilesList(new_chemicals, session)])
+            return CookResponse(success=True, products=[chem.to_dict() for chem in getChemsFromSmilesList(output_chemicals, session)], 
+                                new_chems=[chem.to_dict() for chem in getChemsFromSmilesList(new_chems, session)])
     
-    return CookResponse(success=False, products=[]) # reaction not found
+    return CookResponse(success=False, products=[], new_chems=[]) # reaction not found
 
 
 # get requests
@@ -204,7 +204,7 @@ def getChemsFromSmilesList(smiles: List[str], session: SessionDep) -> List[Chemi
     for smile in smiles:
         default_identifiers.append(session.get(ChemicalDefaultIdentifiers, smile))
         if (default_identifiers[-1] is None):
-            default_identifiers[-1] = ChemicalDefaultIdentifiers(iupac=":(", nickname=":(")  # todo: autogen
+            default_identifiers[-1] = ChemicalDefaultIdentifiers(iupac=":(", nickname=":(")
     chemicals = [Chemical(smiles[i], default_identifiers[i].iupac, default_identifiers[i].nickname) for i in range(len(smiles))]
     return chemicals
 

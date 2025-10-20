@@ -47,3 +47,4 @@ class CookRequest(BaseModel):
 class CookResponse(BaseModel):
     success: bool
     products: list[dict]
+    new_chems: Optional[list[dict]] = None
