@@ -159,7 +159,8 @@ def cook(token: Annotated[str | None, Cookie()], r: CookRequest, session: Sessio
     r.chemicals.sort()
     reactions = session.exec(select(Reaction).where(Reaction.inputs==";".join([chem for chem in r.chemicals]))).all()
     for reaction in reactions:
-        if reaction.temp - r.temp > 0 and str(reaction.temp - r.temp).count("9") == 0 and reaction.uv == r.uv: # lazy way of validating temp
+        print(reaction.temp - r.temp >= 0 and str(reaction.temp - r.temp).count("9") == 0)
+        if reaction.temp - r.temp >= 0 and str(reaction.temp - r.temp).count("9") == 0 and reaction.uv == r.uv: # lazy way of validating temp
             # successful reaction
             output_chemicals = reaction.outputs.split(";")
             new_chems = []
