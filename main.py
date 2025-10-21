@@ -165,7 +165,7 @@ def cook(token: Annotated[str | None, Cookie()], r: CookRequest, session: Sessio
             new_chems = []
 
             skillpoints_gained = 0
-            already_completed_quests = user.completed_quests.split(";") if user.completed_quests != "" else []
+            already_completed_quests = user.completed_quests.split(";") if user.completed_quests != "" and not user.completed_quests is None else []
             quests_completed = []
             for chem in output_chemicals: # todo: check if this completes quest
                 if chem not in user_chemicals:
@@ -263,11 +263,11 @@ def getAllChems(token: Annotated[str | None, Cookie()], session: SessionDep) -> 
 def getAllQuests(token: Annotated[str | None, Cookie()], session: SessionDep) -> AllQuestsResponse:
     try:
         user = session.exec(select(User).where(User.token == hashlib.sha256(token.encode('utf-8')).hexdigest())).one() # if no error is thrown session is valid
+        completed_quests = user.completed_quests.split(";") if user.completed_quests != "" and not user.completed_quests is None else []
     except:
-        raise HTTPException(status_code=404, detail="User not found, login and signin seemed to have failed / token missing")
+        completed_quests = []
     
     all_quests = session.exec(select(Quest)).all()
-    completed_quests = user.completed_quests.split(";") if user.completed_quests != "" else []
     return AllQuestsResponse(
         quests=[{
             "id": quest.id,
