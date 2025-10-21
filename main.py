@@ -158,15 +158,14 @@ def cook(token: Annotated[str | None, Cookie()], r: CookRequest, session: Sessio
     # find matching reaction
     r.chemicals.sort()
     reactions = session.exec(select(Reaction).where(Reaction.inputs==";".join([chem for chem in r.chemicals]))).all()
+    already_completed_quests = user.completed_quests.split(";") if user.completed_quests != "" and not user.completed_quests is None else []
     for reaction in reactions:
-        print(reaction.temp - r.temp >= 0 and str(reaction.temp - r.temp).count("9") == 0)
         if reaction.temp - r.temp >= 0 and str(reaction.temp - r.temp).count("9") == 0 and reaction.uv == r.uv: # lazy way of validating temp
             # successful reaction
             output_chemicals = reaction.outputs.split(";")
             new_chems = []
 
             skillpoints_gained = 0
-            already_completed_quests = user.completed_quests.split(";") if user.completed_quests != "" and not user.completed_quests is None else []
             quests_completed = []
             for chem in output_chemicals: # todo: check if this completes quest
                 if chem not in user_chemicals:
@@ -182,6 +181,8 @@ def cook(token: Annotated[str | None, Cookie()], r: CookRequest, session: Sessio
                     user.skillpoints += quest.reward_skillpoints
                     skillpoints_gained += quest.reward_skillpoints
                     quests_completed.append(quest.id)
+                    already_completed_quests.append(str(quest.id))
+            user.completed_quests = ";".join(already_completed_quests)
             user.unlocked_chemicals = ";".join(user_chemicals)
             session.add(user)
             session.commit()
