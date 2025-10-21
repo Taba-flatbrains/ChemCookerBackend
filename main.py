@@ -191,6 +191,21 @@ def cook(token: Annotated[str | None, Cookie()], r: CookRequest, session: Sessio
     
     return CookResponse(success=False, products=[], new_chems=[]) # reaction not found
 
+@app.post("/submitquest")
+def submit_quest(token: Annotated[str | None, Cookie()], r: SubmitQuestRequest, session: SessionDep) -> SubmitQuestResponse:
+    admin = session.get(AdminToken, hashlib.sha256(token.encode('utf-8')).hexdigest()) 
+    if admin is None:
+        raise HTTPException(status_code=404, detail="Admin token invalid")
+    session.add(Quest(
+        description=r.description,
+        reward_skillpoints=r.reward_skillpoints,
+        reward_misc=r.reward_misc,
+        condition_type=r.condition_type,
+        condition_value=r.condition_value
+    ))
+    session.commit()
+    return SubmitQuestResponse(success=True)
+
 
 # get requests
 @app.get("/validatetoken") 

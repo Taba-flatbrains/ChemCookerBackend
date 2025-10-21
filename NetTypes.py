@@ -54,3 +54,12 @@ class CookResponse(BaseModel):
 class AllQuestsResponse(BaseModel):
     quests: list[dict]
     completed_quests: list[int]
+
+class SubmitQuestRequest(BaseModel):
+    description: str
+    reward_skillpoints: int
+    reward_misc: Optional[str] = None # maybe special chemical or so
+    condition_type: str # "obtain_chemical", ...
+    condition_value: str # smile for "obtain_chemical", ...
+class SubmitQuestResponse(BaseModel):
+    success: bool
