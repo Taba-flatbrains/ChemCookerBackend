@@ -63,3 +63,15 @@ class SubmitQuestRequest(BaseModel):
     condition_value: str # smile for "obtain_chemical", ...
 class SubmitQuestResponse(BaseModel):
     success: bool
+
+class SubmitSkilltreeNodeRequest(BaseModel):
+    description: str
+    title: str
+    x: int # relative pos to start
+    y: int # relative pos to start
+    chem_rewards : Optional[str] # smiles seperated by ;
+    misc_rewards : Optional[str] # unlucking mechanisc oder so
+    misc_reward_icon : Optional[str] # url to img, if no chem is awarded use this
+    skillpoint_cost : int = 1 
+class SubmitSkilltreeNodeResponse(BaseModel):
+    success: bool

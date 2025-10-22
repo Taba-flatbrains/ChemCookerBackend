@@ -63,6 +63,17 @@ class Quest(SQLModel, table=True):
     condition_type: str # "obtain_chemical", ...
     condition_value: str # smile for "obtain_chemical", ...
 
+class SkilltreeNode(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    title: str
+    description: str
+    x: int # relative pos to start
+    y: int # relative pos to start
+    neighbors : str # id seperated by ; unsure if I actually want to use this
+    chem_rewards : Optional[str] # smiles seperated by ;
+    misc_rewards : Optional[str] # unlucking mechanisc oder so
+    misc_reward_icon : Optional[str] # url to img, if no chem is awarded use this
+    skillpoint_cost : int = 1 
 
 sqlite_file_name = "database.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
@@ -207,6 +218,43 @@ def submit_quest(token: Annotated[str | None, Cookie()], r: SubmitQuestRequest, 
     ))
     session.commit()
     return SubmitQuestResponse(success=True)
+
+@app.post("/submitskilltreenode")
+def submit_skilltreenode(token: Annotated[str | None, Cookie()], r: SubmitSkilltreeNodeRequest, session: SessionDep) -> SubmitSkilltreeNodeResponse:
+    admin = session.get(AdminToken, hashlib.sha256(token.encode('utf-8')).hexdigest()) 
+    if admin is None:
+        raise HTTPException(status_code=404, detail="Admin token invalid")
+    neighbors = []
+    for offset in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
+        try:
+            neighbor = session.exec(select(SkilltreeNode).where(SkilltreeNode.x == r.x + offset[0],
+                                                                SkilltreeNode.y == r.y + offset[1])).one()
+            neighbors.append(str(neighbor.id))
+        except:
+            pass
+    new_node = SkilltreeNode(
+        title = r.title,
+        description = r.description,
+        x = r.x,
+        y = r.y,
+        neighbors = ";".join(neighbors),
+        chem_rewards = r.chem_rewards,
+        misc_rewards = r.misc_rewards, # unlucking mechanisc oder so
+        misc_reward_icon = r.misc_reward_icon, # url to img, if no chem is awarded use this
+        skillpoint_cost = r.skillpoint_cost
+    )
+    session.add(new_node)
+    session.commit()
+    session.refresh(new_node)
+    for neighbor_id in neighbors:
+        neighbor_object = session.get(SkilltreeNode, neighbor_id)
+        neighbor_neighbors = neighbor_object.neighbors.split(";") if neighbor_object.neighbors != "" else []
+        neighbor_neighbors.append(str(new_node.id))
+        neighbor_object.neighbors = ";".join(neighbor_neighbors)
+        session.add(neighbor_object)
+    session.commit()
+
+    return SubmitSkilltreeNodeResponse(success=True)
 
 
 # get requests
