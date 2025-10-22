@@ -75,3 +75,7 @@ class SubmitSkilltreeNodeRequest(BaseModel):
     skillpoint_cost : int = 1 
 class SubmitSkilltreeNodeResponse(BaseModel):
     success: bool
+
+class GetSkilltreeResponse(BaseModel):
+    skilltree_nodes : list[dict]
+    unlocked_skilltree_nodes : list[int]

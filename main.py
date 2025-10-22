@@ -33,7 +33,7 @@ class User(SQLModel, table=True):
     email: str = Field(primary_key=True)
     password: str
     skillpoints: int
-    skilltree: Dict = Field(default_factory=dict, sa_column=Column(JSON)) # dict placeholder
+    skilltree: str = "" # string of skilltree node ids seperated by ;
     unlocked_chemicals: str # string of smiles seperated by ;
     nicknames: Dict = Field(default_factory=dict, sa_column=Column(JSON)) # dict of smiles to nicknames
     token: Optional[str] = None
@@ -329,3 +329,29 @@ def getAllQuests(token: Annotated[str | None, Cookie()], session: SessionDep) ->
         } for quest in all_quests],
         completed_quests=[int(qid) for qid in completed_quests]
     )
+
+@app.get("/skilltree")
+def getSkilltree(token: Annotated[str | None, Cookie()], session: SessionDep) -> GetSkilltreeResponse:
+    try:
+        user = session.exec(select(User).where(User.token == hashlib.sha256(token.encode('utf-8')).hexdigest())).one() # if no error is thrown session is valid
+        unlocked_skilltree_nodes = user.skilltree.split(";") if user.skilltree != "" else []
+    except:
+        unlocked_skilltree_nodes = []
+    all_skilltree_nodes = session.exec(select(SkilltreeNode)).all()
+
+    return GetSkilltreeResponse(
+        skilltree_nodes=[{
+            "id":node.id,
+            "title":node.title,
+            "description":node.description,
+            "x":node.x,
+            "y":node.y,
+            "neighbors":node.neighbors,
+            "chem_rewards":node.chem_rewards,
+            "misc_rewards":node.misc_rewards,
+            "misc_reward_icon":node.misc_reward_icon,
+            "skillpoint_cost":node.skillpoint_cost
+        } for node in all_skilltree_nodes],
+        unlocked_skilltree_nodes=[int(node_id) for node_id in unlocked_skilltree_nodes]
+    )
+
