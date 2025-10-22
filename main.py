@@ -247,7 +247,7 @@ def submit_skilltreenode(token: Annotated[str | None, Cookie()], r: SubmitSkillt
     session.commit()
     session.refresh(new_node)
     for neighbor_id in neighbors:
-        neighbor_object = session.get(SkilltreeNode, neighbor_id)
+        neighbor_object = session.get(SkilltreeNode, int(neighbor_id))
         neighbor_neighbors = neighbor_object.neighbors.split(";") if neighbor_object.neighbors != "" else []
         neighbor_neighbors.append(str(new_node.id))
         neighbor_object.neighbors = ";".join(neighbor_neighbors)
