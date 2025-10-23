@@ -346,7 +346,7 @@ def getSkilltree(token: Annotated[str | None, Cookie()], session: SessionDep) ->
             "description":node.description,
             "x":node.x,
             "y":node.y,
-            "neighbors":node.neighbors,
+            "neighbors":[int(neighbor_id) for neighbor_id in node.neighbors.split(";")] if node.neighbors != "" else [],
             "chem_rewards":node.chem_rewards,
             "misc_rewards":node.misc_rewards,
             "misc_reward_icon":node.misc_reward_icon,
