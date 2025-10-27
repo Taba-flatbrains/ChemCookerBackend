@@ -100,7 +100,7 @@ def signup(r: SignupRequest, session: SessionDep) -> SignupResponse:
         email=r.email,
         password=pbkdf2_sha256.hash(r.password), # check: pbkdf2_sha256.verify("toomanysecrets", hash)
         skillpoints=0,
-        skilltree={}, # Placeholder
+        skilltree="1", 
         unlocked_chemicals=STR_START_CHEMS,
         token=hashlib.sha256(token.encode('utf-8')).hexdigest(), # todo: add expire date
         nicknames={}
@@ -224,6 +224,7 @@ def submit_skilltreenode(token: Annotated[str | None, Cookie()], r: SubmitSkillt
     admin = session.get(AdminToken, hashlib.sha256(token.encode('utf-8')).hexdigest()) 
     if admin is None:
         raise HTTPException(status_code=404, detail="Admin token invalid")
+    # todo: check if a node already exists on x and y
     neighbors = []
     for offset in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
         try:
@@ -238,8 +239,8 @@ def submit_skilltreenode(token: Annotated[str | None, Cookie()], r: SubmitSkillt
         x = r.x,
         y = r.y,
         neighbors = ";".join(neighbors),
-        chem_rewards = r.chem_rewards,
-        misc_rewards = r.misc_rewards, # unlucking mechanisc oder so
+        chem_rewards = ";".join(r.chem_rewards),
+        misc_rewards = ";".join(r.misc_rewards), # unlucking mechanisc oder so
         misc_reward_icon = r.misc_reward_icon, # url to img, if no chem is awarded use this
         skillpoint_cost = r.skillpoint_cost
     )
