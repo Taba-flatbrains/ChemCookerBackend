@@ -111,6 +111,8 @@ def signup(r: SignupRequest, session: SessionDep) -> SignupResponse:
 @app.post("/login/")
 def login(r: LoginRequest, session: SessionDep) -> LoginResponse:
     user = session.get(User, r.email)
+    if (user is None):
+        return LoginResponse(token="", success=False)
     hashed_pw = user.password
     if (pbkdf2_sha256.verify(r.password, hashed_pw)):
         token = str(uuid4())
