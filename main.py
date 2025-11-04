@@ -259,6 +259,22 @@ def submit_skilltreenode(token: Annotated[str | None, Cookie()], r: SubmitSkillt
 
     return SubmitSkilltreeNodeResponse(success=True)
 
+@app.post("/skilltree-upgrade")
+def skilltreeUpgrade(token: Annotated[str | None, Cookie()], r: SkilltreeUpgradeRequest, session: SessionDep) -> SkilltreeUpgradeResponse: # stupid name but I dont know what to call it
+    try:
+        user = session.exec(select(User).where(User.token == hashlib.sha256(token.encode('utf-8')).hexdigest())).one() # if no error is thrown session is valid
+    except:
+        raise HTTPException(status_code=404, detail="User not found, login and signin seemed to have failed / token missing")
+    node = session.get(SkilltreeNode, r.id)
+    if user.skillpoints >= node.skillpoint_cost:
+        user.skillpoints = user.skillpoints - node.skillpoint_cost
+    else:
+        return {"success":False}
+    unlocked_skilltree_nodes = user.skilltree.split(";")
+    unlocked_skilltree_nodes.append(str(r.id))
+    user.skilltree = ";".join(unlocked_skilltree_nodes)
+    session.commit()
+    return {"success":True}
 
 # get requests
 @app.get("/validatetoken") 
