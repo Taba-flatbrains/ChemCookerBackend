@@ -84,3 +84,4 @@ class SkilltreeUpgradeRequest(BaseModel):
     id : int
 class SkilltreeUpgradeResponse(BaseModel):
     success : bool
+    unlocked_chemicals : Optional[list[dict]] = None

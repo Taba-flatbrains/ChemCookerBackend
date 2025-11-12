@@ -274,7 +274,16 @@ def skilltreeUpgrade(token: Annotated[str | None, Cookie()], r: SkilltreeUpgrade
     unlocked_skilltree_nodes.append(str(r.id))
     user.skilltree = ";".join(unlocked_skilltree_nodes)
     session.commit()
-    return {"success":True}
+    unlocked_chemicals = []
+    if node.chem_rewards is not None:
+        for chem_smile in node.chem_rewards.split(";"):
+            user_chemicals = user.unlocked_chemicals.split(";")
+            if chem_smile not in user_chemicals:
+                user_chemicals.append(chem_smile)
+                unlocked_chemicals.append(chem_smile)
+            user.unlocked_chemicals = ";".join(user_chemicals)
+        session.commit()
+    return {"success":True, "unlocked_chemicals":[chem.to_dict() for chem in getChemsFromSmilesList(unlocked_chemicals, session)]}
 
 # get requests
 @app.get("/validatetoken") 
