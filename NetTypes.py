@@ -79,6 +79,7 @@ class SubmitSkilltreeNodeResponse(BaseModel):
 class GetSkilltreeResponse(BaseModel):
     skilltree_nodes : list[dict]
     unlocked_skilltree_nodes : list[int]
+    availableSkillpoints : int
 
 class SkilltreeUpgradeRequest(BaseModel):
     id : int

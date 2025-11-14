@@ -363,8 +363,10 @@ def getSkilltree(token: Annotated[str | None, Cookie()], session: SessionDep) ->
     try:
         user = session.exec(select(User).where(User.token == hashlib.sha256(token.encode('utf-8')).hexdigest())).one() # if no error is thrown session is valid
         unlocked_skilltree_nodes = user.skilltree.split(";") if user.skilltree != "" else []
+        availableSkillpoints = user.skillpoints
     except:
         unlocked_skilltree_nodes = []
+        availableSkillpoints = 0
     all_skilltree_nodes = session.exec(select(SkilltreeNode)).all()
 
     return GetSkilltreeResponse(
@@ -380,6 +382,7 @@ def getSkilltree(token: Annotated[str | None, Cookie()], session: SessionDep) ->
             "misc_reward_icon":node.misc_reward_icon,
             "skillpoint_cost":node.skillpoint_cost
         } for node in all_skilltree_nodes],
-        unlocked_skilltree_nodes=[int(node_id) for node_id in unlocked_skilltree_nodes]
+        unlocked_skilltree_nodes=[int(node_id) for node_id in unlocked_skilltree_nodes],
+        availableSkillpoints=availableSkillpoints
     )
 
