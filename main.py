@@ -140,6 +140,20 @@ def set_default_chemical_identifiers(token: Annotated[str | None, Cookie()], r: 
     session.commit()
     return
 
+@app.post("/set-nickname")
+def set_nickname(token: Annotated[str | None, Cookie()], r: SetNicknameRequest, session: SessionDep):
+    try:
+        user = session.exec(select(User).where(User.token == hashlib.sha256(token.encode('utf-8')).hexdigest())).one() # if no error is thrown session is valid
+    except:
+        raise HTTPException(status_code=404, detail="User not found, login and signin seemed to have failed / token missing")
+    nicknames = user.nicknames.copy()
+    nicknames[r.smile] = r.nickname
+    print(nicknames)
+    user.nicknames = nicknames
+    session.add(user)
+    session.commit()
+    return {"success":True}
+
 @app.post("/submitreaction")  # todo: add option to change reaction
 def submit_reaction(token: Annotated[str | None, Cookie()], r: SubmitReactionRequest, session: SessionDep):
     admin = session.get(AdminToken, hashlib.sha256(token.encode('utf-8')).hexdigest()) 
@@ -314,7 +328,7 @@ def getAvailableChems(token: Annotated[str | None, Cookie()], session: SessionDe
     # change nickname
     nicknames = user.nicknames
     for nickname_key in nicknames.keys(): # todo: add error catching (if nickname is set for chemical not obtained)
-        chemicals[nickname_key].nickname = nicknames[nickname_key]
+        chemicals[smiles.index(nickname_key)].nickname = nicknames[nickname_key] # ultra inefficient should change later
 
     return {"chemicals":list([chemical.to_dict() for chemical in chemicals])}
 

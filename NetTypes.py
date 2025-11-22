@@ -86,3 +86,7 @@ class SkilltreeUpgradeRequest(BaseModel):
 class SkilltreeUpgradeResponse(BaseModel):
     success : bool
     unlocked_chemicals : Optional[list[dict]] = None
+
+class SetNicknameRequest(BaseModel):
+    smile : str
+    nickname : str
