@@ -50,6 +50,7 @@ class CookResponse(BaseModel):
     new_chems: Optional[list[dict]] = None
     skillpoints_gained: int = 0
     quests_completed: list[int] = [] # quest ids
+    added_to_pending: bool = False
 
 class AllQuestsResponse(BaseModel):
     quests: list[dict]

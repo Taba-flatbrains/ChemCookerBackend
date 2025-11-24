@@ -38,6 +38,7 @@ class User(SQLModel, table=True):
     nicknames: Dict = Field(default_factory=dict, sa_column=Column(JSON)) # dict of smiles to nicknames
     token: Optional[str] = None
     completed_quests: str = "" # string of quest ids seperated by ;
+    pending_reactions: str = "" # smile1;smiles2;...!temp!uv    seperated by | for multiple pending reactions
 
 class AdminToken(SQLModel, table=True):
     token: str = Field(primary_key=True) # todo: set expire date
@@ -74,6 +75,9 @@ class SkilltreeNode(SQLModel, table=True):
     misc_rewards : Optional[str] # unlucking mechanisc oder so
     misc_reward_icon : Optional[str] # url to img, if no chem is awarded use this
     skillpoint_cost : int = 1 
+
+class PendingReaction(SQLModel, table=True):
+    inputs : str = Field(primary_key=True) # string of smiles seperated by ;
 
 sqlite_file_name = "database.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
@@ -185,6 +189,10 @@ def cook(token: Annotated[str | None, Cookie()], r: CookRequest, session: Sessio
     # find matching reaction
     r.chemicals.sort()
     reactions = session.exec(select(Reaction).where(Reaction.inputs==";".join([chem for chem in r.chemicals]))).all()
+    if len(reactions) == 0:
+        session.add(PendingReaction(inputs=";".join([chem for chem in r.chemicals])))
+        session.commit()
+        return CookResponse(success=False, products=[], new_chems=[], added_to_pending=True) # reaction does not exist yet
     already_completed_quests = user.completed_quests.split(";") if user.completed_quests != "" and not user.completed_quests is None else []
     for reaction in reactions:
         if reaction.temp - r.temp >= 0 and str(reaction.temp - r.temp).count("9") == 0 and reaction.uv == r.uv: # lazy way of validating temp
