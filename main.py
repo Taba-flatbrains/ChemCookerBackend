@@ -191,6 +191,10 @@ def cook(token: Annotated[str | None, Cookie()], r: CookRequest, session: Sessio
     reactions = session.exec(select(Reaction).where(Reaction.inputs==";".join([chem for chem in r.chemicals]))).all()
     if len(reactions) == 0:
         session.add(PendingReaction(inputs=";".join([chem for chem in r.chemicals])))
+        pr = user.pending_reactions.split("|") if user.pending_reactions != "" else []
+        pr.append(";".join([chem for chem in r.chemicals]) + "!" + str(r.temp) + "!" + str(int(r.uv)))
+        user.pending_reactions = "|".join(pr)
+        session.add(user)
         session.commit()
         return CookResponse(success=False, products=[], new_chems=[], added_to_pending=True) # reaction does not exist yet
     already_completed_quests = user.completed_quests.split(";") if user.completed_quests != "" and not user.completed_quests is None else []
