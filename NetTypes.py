@@ -46,6 +46,9 @@ class CookRequest(BaseModel):
     uv: bool
 class CookResponse(BaseModel):
     success: bool
+    inputs: Optional[list[str]] = None
+    temp: Optional[int] = None
+    uv: Optional[bool] = None
     products: list[dict]
     new_chems: Optional[list[dict]] = None
     skillpoints_gained: int = 0
@@ -91,3 +94,9 @@ class SkilltreeUpgradeResponse(BaseModel):
 class SetNicknameRequest(BaseModel):
     smile : str
     nickname : str
+
+class GetPendingReactionsResponse(BaseModel):
+    pending_reactions : list[dict]
+    removed_pending_reactions : list[dict] # list of reactions that were removed because they were invalid
+    successful_pending_reactions : list[CookResponse] # list of reactions that were successful
+    # this should be called regularly and on startup, if a reaction has been successful popup should be shown

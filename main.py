@@ -180,22 +180,29 @@ def cook(token: Annotated[str | None, Cookie()], r: CookRequest, session: Sessio
     except:
         raise HTTPException(status_code=404, detail="User not found, login and signin seemed to have failed / token missing")
     
+    return _cook_internal(user, r, session, shouldAddPending=True)
+
+def _cook_internal(user: User, r: CookRequest, session: SessionDep, shouldAddPending : bool = False) -> CookResponse:
     # check if user has the input chemicals
     user_chemicals = user.unlocked_chemicals.split(";")
     for chem in r.chemicals:
         if chem not in user_chemicals:
             return CookResponse(success=False, products=[], new_chems=[])
-
     # find matching reaction
     r.chemicals.sort()
     reactions = session.exec(select(Reaction).where(Reaction.inputs==";".join([chem for chem in r.chemicals]))).all()
     if len(reactions) == 0:
-        session.add(PendingReaction(inputs=";".join([chem for chem in r.chemicals])))
+        if not shouldAddPending:
+            return CookResponse(success=False, products=[], new_chems=[], added_to_pending=True) # reaction does not exist
+        if session.get(PendingReaction, ";".join([chem for chem in r.chemicals])) is None:
+            session.add(PendingReaction(inputs=";".join([chem for chem in r.chemicals]))) # add if not already existing
+            session.commit()
         pr = user.pending_reactions.split("|") if user.pending_reactions != "" else []
-        pr.append(";".join([chem for chem in r.chemicals]) + "!" + str(r.temp) + "!" + str(int(r.uv)))
-        user.pending_reactions = "|".join(pr)
-        session.add(user)
-        session.commit()
+        if not ";".join([chem for chem in r.chemicals]) + "!" + str(r.temp) + "!" + str(int(r.uv)) in pr:
+            pr.append(";".join([chem for chem in r.chemicals]) + "!" + str(r.temp) + "!" + str(int(r.uv)))
+            user.pending_reactions = "|".join(pr)
+            session.add(user)
+            session.commit()
         return CookResponse(success=False, products=[], new_chems=[], added_to_pending=True) # reaction does not exist yet
     already_completed_quests = user.completed_quests.split(";") if user.completed_quests != "" and not user.completed_quests is None else []
     for reaction in reactions:
@@ -225,11 +232,15 @@ def cook(token: Annotated[str | None, Cookie()], r: CookRequest, session: Sessio
             user.unlocked_chemicals = ";".join(user_chemicals)
             session.add(user)
             session.commit()
-            return CookResponse(success=True, products=[chem.to_dict() for chem in getChemsFromSmilesList(output_chemicals, session)], 
+            return CookResponse(success=True, 
+                                inputs=r.chemicals,
+                                temp=r.temp,
+                                uv=r.uv,
+                                products=[chem.to_dict() for chem in getChemsFromSmilesList(output_chemicals, session)], 
                                 new_chems=[chem.to_dict() for chem in getChemsFromSmilesList(new_chems, session)],
                                 skillpoints_gained=skillpoints_gained,
                                 quests_completed=quests_completed)
-    
+
     return CookResponse(success=False, products=[], new_chems=[]) # reaction not found
 
 @app.post("/submitquest")
@@ -410,5 +421,52 @@ def getSkilltree(token: Annotated[str | None, Cookie()], session: SessionDep) ->
         } for node in all_skilltree_nodes],
         unlocked_skilltree_nodes=[int(node_id) for node_id in unlocked_skilltree_nodes],
         availableSkillpoints=availableSkillpoints
+    )
+
+@app.get("/pending-reactions")
+def get_pending_reactions(token: Annotated[str | None, Cookie()], session: SessionDep) -> GetPendingReactionsResponse:
+    try:
+        user = session.exec(select(User).where(User.token == hashlib.sha256(token.encode('utf-8')).hexdigest())).one() # if no error is thrown session is valid
+    except:
+        raise HTTPException(status_code=404, detail="User not found, login and signin seemed to have failed / token missing")
+    pending_reactions = []
+    successful_pending_reactions = []
+    removed_pending_reactions = []
+    upr = user.pending_reactions
+    new_upr = []
+    if upr != "":
+        for pr in upr.split("|"):
+            parts = pr.split("!")
+            inputs = parts[0].split(";")
+            
+            # check if reaction has been resolved
+            cook_response = _cook_internal(user, CookRequest(chemicals=inputs, temp=int(parts[1]), uv=bool(int(parts[2]))), session)
+            if cook_response.success:
+                successful_pending_reactions.append(cook_response)
+                continue # reaction has been resolved successfully, do not add to pending reactions
+            
+            temp = int(parts[1])
+            uv = bool(int(parts[2]))
+            if not cook_response.added_to_pending:
+                removed_pending_reactions.append({
+                "inputs":inputs,
+                "temp":temp,
+                "uv":uv
+                })
+                continue # reaction now added but was executed without success
+            pending_reactions.append({
+                "inputs":inputs,
+                "temp":temp,
+                "uv":uv
+            })
+            new_upr.append(pr) # keep in pending reactions, resolved reactions are removed
+    user.pending_reactions = "|".join(new_upr)
+    session.add(user)
+    session.commit()
+
+    return GetPendingReactionsResponse(
+        pending_reactions=pending_reactions,
+        removed_pending_reactions=removed_pending_reactions,
+        successful_pending_reactions=successful_pending_reactions
     )
 
