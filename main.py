@@ -206,7 +206,7 @@ def _cook_internal(user: User, r: CookRequest, session: SessionDep, shouldAddPen
         return CookResponse(success=False, products=[], new_chems=[], added_to_pending=True) # reaction does not exist yet
     already_completed_quests = user.completed_quests.split(";") if user.completed_quests != "" and not user.completed_quests is None else []
     for reaction in reactions:
-        if reaction.temp - r.temp >= 0 and str(reaction.temp - r.temp).count("9") == 0 and reaction.uv == r.uv: # lazy way of validating temp
+        if reaction.temp - r.temp >= 0 and str(reaction.temp - r.temp).count("9") == 0 and reaction.uv == r.uv and reaction.outputs != "": # lazy way of validating temp
             # successful reaction
             output_chemicals = reaction.outputs.split(";")
             new_chems = []
