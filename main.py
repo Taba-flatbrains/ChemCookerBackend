@@ -163,6 +163,13 @@ def submit_reaction(token: Annotated[str | None, Cookie()], r: SubmitReactionReq
     admin = session.get(AdminToken, hashlib.sha256(token.encode('utf-8')).hexdigest()) 
     if admin is None:
         raise HTTPException(status_code=404, detail="Admin token invalid")
+    
+    #before sorting remove pending reactions that match this reaction (they are not sorted either)
+    pending_reaction = session.get(PendingReaction, ";".join([chem["smile"] for chem in r.inputs]))
+    if pending_reaction is not None:
+        session.delete(pending_reaction)
+        session.commit()
+
     #sort inputs and outputs to have a consistent order
     r.inputs.sort(key=lambda chem: chem["smile"])
     r.outputs.sort(key=lambda chem: chem["smile"])
@@ -470,3 +477,12 @@ def get_pending_reactions(token: Annotated[str | None, Cookie()], session: Sessi
         successful_pending_reactions=successful_pending_reactions
     )
 
+@app.get("/admin-pending-reactions")
+def admin_get_pending_reactions(token: Annotated[str | None, Cookie()], session: SessionDep) -> AdminGetPendingReactionsResponse:
+    admin = session.get(AdminToken, hashlib.sha256(token.encode('utf-8')).hexdigest()) 
+    if admin is None:
+        raise HTTPException(status_code=404, detail="Admin token invalid")
+    pending_reactions = session.exec(select(PendingReaction)).all()
+    return AdminGetPendingReactionsResponse(
+        pending_reactions=[pr.inputs.split(";") for pr in pending_reactions]
+    )

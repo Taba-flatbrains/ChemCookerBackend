@@ -100,3 +100,6 @@ class GetPendingReactionsResponse(BaseModel):
     removed_pending_reactions : list[dict] # list of reactions that were removed because they were invalid
     successful_pending_reactions : list[CookResponse] # list of reactions that were successful
     # this should be called regularly and on startup, if a reaction has been successful popup should be shown
+
+class AdminGetPendingReactionsResponse(BaseModel):
+    pending_reactions : list[list[str]]
