@@ -165,6 +165,9 @@ def submit_reaction(admin_token: Annotated[str | None, Cookie()], r: SubmitReact
     if admin is None:
         raise HTTPException(status_code=404, detail="Admin token invalid")
     
+    if len(r.inputs) == 0 or len(r.inputs) != len(set([chem["smile"] for chem in r.inputs])):
+        return {"success": False}# no chemicals or duplicate chemicals
+    
     #before sorting remove pending reactions that match this reaction (they are not sorted either)
     pending_reaction = session.get(PendingReaction, ";".join([chem["smile"] for chem in r.inputs]))
     if pending_reaction is not None:
@@ -181,13 +184,16 @@ def submit_reaction(admin_token: Annotated[str | None, Cookie()], r: SubmitReact
         uv=r.uv))
     session.commit()
 
+    return {"success": True}
+
 @app.post("/cook")
 def cook(token: Annotated[str | None, Cookie()], r: CookRequest, session: SessionDep) -> CookResponse:
     try:
         user = session.exec(select(User).where(User.token == hashlib.sha256(token.encode('utf-8')).hexdigest())).one() # if no error is thrown session is valid
     except:
         raise HTTPException(status_code=404, detail="User not found, login and signin seemed to have failed / token missing")
-    
+    if len(r.chemicals) == 0 or len(r.chemicals) != len(set(r.chemicals)):
+        return CookResponse(success=False, products=[], new_chems=[]) # no chemicals or duplicate chemicals
     return _cook_internal(user, r, session, shouldAddPending=True)
 
 def _cook_internal(user: User, r: CookRequest, session: SessionDep, shouldAddPending : bool = False) -> CookResponse:
