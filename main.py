@@ -17,6 +17,7 @@ app = FastAPI()
 
 origins = [
     "http://localhost:4200",
+    "http://localhost:45093" # for testing purposes
 ]
 
 app.add_middleware(
@@ -136,8 +137,8 @@ def admin_login(r: AdminLoginRequest, session: SessionDep) -> AdminLoginResponse
     return AdminLoginResponse(success=True, token=token)
 
 @app.post("/set-default-chemical-identifiers")  # todo: add option to change nickname
-def set_default_chemical_identifiers(token: Annotated[str | None, Cookie()], r: SetDefaultChemicalIdentifiersRequest, session: SessionDep):
-    admin = session.get(AdminToken, hashlib.sha256(token.encode('utf-8')).hexdigest()) # check for valid admin session
+def set_default_chemical_identifiers(admin_token: Annotated[str | None, Cookie()], r: SetDefaultChemicalIdentifiersRequest, session: SessionDep):
+    admin = session.get(AdminToken, hashlib.sha256(admin_token.encode('utf-8')).hexdigest()) # check for valid admin session
     if admin is None:
         raise HTTPException(status_code=404, detail="Admin token invalid")
     session.add(ChemicalDefaultIdentifiers(smile=r.smile, iupac=r.iupac, nickname=r.nickname)) # todo: set option to override previous default identifier
@@ -159,8 +160,8 @@ def set_nickname(token: Annotated[str | None, Cookie()], r: SetNicknameRequest, 
     return {"success":True}
 
 @app.post("/submitreaction")  # todo: add option to change reaction
-def submit_reaction(token: Annotated[str | None, Cookie()], r: SubmitReactionRequest, session: SessionDep):
-    admin = session.get(AdminToken, hashlib.sha256(token.encode('utf-8')).hexdigest()) 
+def submit_reaction(admin_token: Annotated[str | None, Cookie()], r: SubmitReactionRequest, session: SessionDep):
+    admin = session.get(AdminToken, hashlib.sha256(admin_token.encode('utf-8')).hexdigest()) 
     if admin is None:
         raise HTTPException(status_code=404, detail="Admin token invalid")
     
@@ -251,8 +252,8 @@ def _cook_internal(user: User, r: CookRequest, session: SessionDep, shouldAddPen
     return CookResponse(success=False, products=[], new_chems=[]) # reaction not found
 
 @app.post("/submitquest")
-def submit_quest(token: Annotated[str | None, Cookie()], r: SubmitQuestRequest, session: SessionDep) -> SubmitQuestResponse:
-    admin = session.get(AdminToken, hashlib.sha256(token.encode('utf-8')).hexdigest()) 
+def submit_quest(admin_token: Annotated[str | None, Cookie()], r: SubmitQuestRequest, session: SessionDep) -> SubmitQuestResponse:
+    admin = session.get(AdminToken, hashlib.sha256(admin_token.encode('utf-8')).hexdigest()) 
     if admin is None:
         raise HTTPException(status_code=404, detail="Admin token invalid")
     session.add(Quest(
@@ -266,8 +267,8 @@ def submit_quest(token: Annotated[str | None, Cookie()], r: SubmitQuestRequest, 
     return SubmitQuestResponse(success=True)
 
 @app.post("/submitskilltreenode")
-def submit_skilltreenode(token: Annotated[str | None, Cookie()], r: SubmitSkilltreeNodeRequest, session: SessionDep) -> SubmitSkilltreeNodeResponse:
-    admin = session.get(AdminToken, hashlib.sha256(token.encode('utf-8')).hexdigest()) 
+def submit_skilltreenode(admin_token: Annotated[str | None, Cookie()], r: SubmitSkilltreeNodeRequest, session: SessionDep) -> SubmitSkilltreeNodeResponse:
+    admin = session.get(AdminToken, hashlib.sha256(admin_token.encode('utf-8')).hexdigest()) 
     if admin is None:
         raise HTTPException(status_code=404, detail="Admin token invalid")
     # todo: check if a node already exists on x and y
@@ -339,8 +340,8 @@ def validatetoken(token: Annotated[str | None, Cookie()], session: SessionDep) -
     return ValidTokenResponse(valid=True)
 
 @app.get("/admin-validatetoken")
-def admin_validatetoken(token: Annotated[str | None, Cookie()], session: SessionDep) -> ValidTokenResponse:
-    admin = session.get(AdminToken, hashlib.sha256(token.encode('utf-8')).hexdigest()) 
+def admin_validatetoken(admin_token: Annotated[str | None, Cookie()], session: SessionDep) -> ValidTokenResponse:
+    admin = session.get(AdminToken, hashlib.sha256(admin_token.encode('utf-8')).hexdigest()) 
     if admin is None:
         return ValidTokenResponse(valid=False)
     return ValidTokenResponse(valid=True)
@@ -372,8 +373,8 @@ def getChemsFromSmilesList(smiles: List[str], session: SessionDep) -> List[Chemi
     return chemicals
 
 @app.get("/all-chems") # admin only
-def getAllChems(token: Annotated[str | None, Cookie()], session: SessionDep) -> AvailableChemsResponse: 
-    admin = session.get(AdminToken, hashlib.sha256(token.encode('utf-8')).hexdigest()) 
+def getAllChems(admin_token: Annotated[str | None, Cookie()], session: SessionDep) -> AvailableChemsResponse: 
+    admin = session.get(AdminToken, hashlib.sha256(admin_token.encode('utf-8')).hexdigest()) 
     if admin is None:
         raise HTTPException(status_code=404, detail="Admin token invalid")
     
@@ -478,8 +479,8 @@ def get_pending_reactions(token: Annotated[str | None, Cookie()], session: Sessi
     )
 
 @app.get("/admin-pending-reactions")
-def admin_get_pending_reactions(token: Annotated[str | None, Cookie()], session: SessionDep) -> AdminGetPendingReactionsResponse:
-    admin = session.get(AdminToken, hashlib.sha256(token.encode('utf-8')).hexdigest()) 
+def admin_get_pending_reactions(admin_token: Annotated[str | None, Cookie()], session: SessionDep) -> AdminGetPendingReactionsResponse:
+    admin = session.get(AdminToken, hashlib.sha256(admin_token.encode('utf-8')).hexdigest()) 
     if admin is None:
         raise HTTPException(status_code=404, detail="Admin token invalid")
     pending_reactions = session.exec(select(PendingReaction)).all()
