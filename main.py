@@ -17,7 +17,8 @@ app = FastAPI()
 
 origins = [
     "http://localhost:4200",
-    "http://localhost:45093" # for testing purposes
+    "http://localhost:34475", # for testing purposes
+    "http://10.183.109.33:4200", # henni pc
 ]
 
 app.add_middleware(
@@ -136,7 +137,7 @@ def admin_login(r: AdminLoginRequest, session: SessionDep) -> AdminLoginResponse
     session.commit()
     return AdminLoginResponse(success=True, token=token)
 
-@app.post("/set-default-chemical-identifiers")  # todo: add option to change nickname
+@app.post("/set-default-chemical-identifiers")  
 def set_default_chemical_identifiers(admin_token: Annotated[str | None, Cookie()], r: SetDefaultChemicalIdentifiersRequest, session: SessionDep):
     admin = session.get(AdminToken, hashlib.sha256(admin_token.encode('utf-8')).hexdigest()) # check for valid admin session
     if admin is None:
@@ -227,14 +228,14 @@ def _cook_internal(user: User, r: CookRequest, session: SessionDep, shouldAddPen
 
             skillpoints_gained = 0
             quests_completed = []
-            for chem in output_chemicals: # todo: check if this completes quest
+            for chem in output_chemicals:
                 if chem not in user_chemicals:
                     user_chemicals.append(chem)
                     new_chems.append(chem)
                 completed_quests = session.exec(select(Quest).where(
                     (Quest.condition_type == QuestConditionTypes.OBTAIN_CHEMICAL) & 
                     (Quest.condition_value == chem)
-                )).all() # todo: give reward
+                )).all() 
                 for quest in completed_quests:
                     if (str(quest.id) in already_completed_quests):
                         continue # quest already completed
