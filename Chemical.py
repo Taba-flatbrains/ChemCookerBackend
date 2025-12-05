@@ -18,8 +18,6 @@ class Chemical():
     def to_str(self):
         return f"{{'smile': '{self.smile}', 'iupac': '{self.iupac}', 'nickname': '{self.nickname}'}}"
 
-# todo: check if chemicals are the same (there are many ways to display one chemical as a smile)
-
 STR_START_CHEMS = ";".join(
     Chemical(i).smile for i in ["[Ca+2].[O-]C([O-])=O", "O=O", "CC(=O)O", "O"]
 )
