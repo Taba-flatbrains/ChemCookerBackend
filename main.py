@@ -112,7 +112,7 @@ def signup(r: SignupRequest, session: SessionDep) -> SignupResponse:
         nicknames={}
     ))
     session.commit()
-    return SignupResponse(success=True, token=token)
+    return SignupResponse(success=True, name=r.username, token=token)
 
 @app.post("/login/")
 def login(r: LoginRequest, session: SessionDep) -> LoginResponse:
@@ -125,7 +125,7 @@ def login(r: LoginRequest, session: SessionDep) -> LoginResponse:
         user.token = hashlib.sha256(token.encode('utf-8')).hexdigest()
         session.add(user) # is this correct? or does user get doubled
         session.commit()
-        return LoginResponse(token=token, success=True)
+        return LoginResponse(token=token, name=user.name, success=True)
     return LoginResponse(token="", success=False)
 
 @app.post("/admin-login")
@@ -344,7 +344,7 @@ def validatetoken(token: Annotated[str | None, Cookie()], session: SessionDep) -
         user = session.exec(select(User).where(User.token == hashlib.sha256(token.encode('utf-8')).hexdigest())).one() # if no error is thrown session is valid
     except:
         return ValidTokenResponse(valid=False)
-    return ValidTokenResponse(valid=True)
+    return ValidTokenResponse(valid=True, name=user.name)
 
 @app.get("/admin-validatetoken")
 def admin_validatetoken(admin_token: Annotated[str | None, Cookie()], session: SessionDep) -> ValidTokenResponse:

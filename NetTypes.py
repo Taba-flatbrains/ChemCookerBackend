@@ -9,6 +9,7 @@ class SignupRequest(BaseModel):
 class SignupResponse(BaseModel):
     success: bool
     token: str
+    name: Optional[str] = None
 
 class LoginRequest(BaseModel):
     email: str 
@@ -16,9 +17,11 @@ class LoginRequest(BaseModel):
 class LoginResponse(BaseModel):
     success: bool
     token: str
+    name: Optional[str] = None
 
 class ValidTokenResponse(BaseModel):
     valid: bool
+    name: Optional[str] = None
 
 class AvailableChemsResponse(BaseModel):
     chemicals: list[dict]
