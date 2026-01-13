@@ -187,6 +187,7 @@ def submit_reaction(admin_token: Annotated[str | None, Cookie()], r: SubmitReact
 
     return {"success": True}
 
+lightSkilltreeNode = 18
 @app.post("/cook")
 def cook(token: Annotated[str | None, Cookie()], r: CookRequest, session: SessionDep) -> CookResponse:
     try:
@@ -195,6 +196,10 @@ def cook(token: Annotated[str | None, Cookie()], r: CookRequest, session: Sessio
         raise HTTPException(status_code=404, detail="User not found, login and signin seemed to have failed / token missing")
     if len(r.chemicals) == 0 or len(r.chemicals) != len(set(r.chemicals)):
         return CookResponse(success=False, products=[], new_chems=[]) # no chemicals or duplicate chemicals
+    if r.uv:
+        unlocked_skilltree_nodes = user.skilltree.split(";") if user.skilltree != "" else []
+        if str(lightSkilltreeNode) not in unlocked_skilltree_nodes:
+            return CookResponse(success=False, products=[], new_chems=[]) # uv not unlocked
     return _cook_internal(user, r, session, shouldAddPending=True)
 
 def _cook_internal(user: User, r: CookRequest, session: SessionDep, shouldAddPending : bool = False) -> CookResponse:
