@@ -328,6 +328,13 @@ def skilltreeUpgrade(token: Annotated[str | None, Cookie()], r: SkilltreeUpgrade
     else:
         return {"success":False}
     unlocked_skilltree_nodes = user.skilltree.split(";")
+    temp = False
+    for neighbor_id in node.neighbors.split(";"):
+        if str(neighbor_id) in unlocked_skilltree_nodes:
+            temp = True
+            break
+    if not temp:
+        return {"success":False} # node is not connected to already unlocked node
     unlocked_skilltree_nodes.append(str(r.id))
     user.skilltree = ";".join(unlocked_skilltree_nodes)
     session.commit()
