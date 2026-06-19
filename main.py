@@ -146,6 +146,16 @@ def set_default_chemical_identifiers(admin_token: Annotated[str | None, Cookie()
     session.commit()
     return
 
+@app.post("/change-default-chemical-identifiers")
+def change_default_chemical_identifiers(admin_token: Annotated[str | None, Cookie()], r: ChangeDefaultChemicalIdentifiersRequest, session: SessionDep):
+    admin = session.get(AdminToken, hashlib.sha256(admin_token.encode('utf-8')).hexdigest()) # check for valid admin session
+    if admin is None:
+        raise HTTPException(status_code=404, detail="Admin token invalid")
+    session.delete(session.get(ChemicalDefaultIdentifiers, r.old_smile)) # delete old entry, primary key is smile so it has to be deleted and readded
+    session.add(ChemicalDefaultIdentifiers(smile=r.new_smile, iupac=r.new_iupac, nickname=r.new_nickname))
+    session.commit()
+    return
+
 @app.post("/set-nickname")
 def set_nickname(token: Annotated[str | None, Cookie()], r: SetNicknameRequest, session: SessionDep):
     try:
@@ -463,7 +473,8 @@ def get_pending_reactions(token: Annotated[str | None, Cookie()], session: Sessi
     new_upr = []
     if upr != "":
         for pr in upr.split("|"):
-            parts = pr.split("!")
+            parts = pr.split("!") # huge problem double usage of ! in pending reactions string and in supressing smiles representation
+            # todo: fix
             inputs = parts[0].split(";")
             
             # check if reaction has been resolved
