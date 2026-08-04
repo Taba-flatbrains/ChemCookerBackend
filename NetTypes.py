@@ -77,6 +77,16 @@ class SubmitQuestRequest(BaseModel):
 class SubmitQuestResponse(BaseModel):
     success: bool
 
+class ChangeQuestRequest(BaseModel):
+    id: int
+    description: str
+    reward_skillpoints: int
+    reward_misc: Optional[str] = None # maybe special chemical or so
+    condition_type: str # "obtain_chemical", ...
+    condition_value: str # smile for "obtain_chemical", ...
+class ChangeQuestResponse(BaseModel):   
+    success: bool
+
 class SubmitSkilltreeNodeRequest(BaseModel):
     description: str
     title: str

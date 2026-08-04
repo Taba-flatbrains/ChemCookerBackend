@@ -151,8 +151,49 @@ def change_default_chemical_identifiers(admin_token: Annotated[str | None, Cooki
     admin = session.get(AdminToken, hashlib.sha256(admin_token.encode('utf-8')).hexdigest()) # check for valid admin session
     if admin is None:
         raise HTTPException(status_code=404, detail="Admin token invalid")
-    session.delete(session.get(ChemicalDefaultIdentifiers, r.old_smile)) # delete old entry, primary key is smile so it has to be deleted and readded
+    if r.old_smile == "":
+        raise HTTPException(status_code=402, detail="Old smile empty")
     session.add(ChemicalDefaultIdentifiers(smile=r.new_smile, iupac=r.new_iupac, nickname=r.new_nickname))
+
+    # todo: change smile in all places
+    if r.old_smile != r.new_smile:
+        session.delete(session.get(ChemicalDefaultIdentifiers, r.old_smile))
+
+        reactions = session.exec(select(Reaction).where((Reaction.inputs.like(f"%{r.old_smile}%")) | (Reaction.outputs.like(f"%{r.old_smile}%")))).all()
+        for reaction in reactions:
+            reaction.inputs = reaction.inputs.replace(r.old_smile, r.new_smile)
+            reaction.outputs = reaction.outputs.replace(r.old_smile, r.new_smile)
+            session.add(reaction)
+        
+        pending_reactions = session.exec(select(PendingReaction).where(PendingReaction.inputs.like(f"%{r.old_smile}%"))).all()
+        for pending_reaction in pending_reactions:
+            pending_reaction.inputs = pending_reaction.inputs.replace(r.old_smile, r.new_smile)
+            session.add(pending_reaction)
+
+        users = session.exec(select(User)).all()
+        for user in users:
+            user.unlocked_chemicals = user.unlocked_chemicals.replace(r.old_smile, r.new_smile)
+            if r.old_smile in user.nicknames:
+                user.nicknames[r.new_smile] = user.nicknames.pop(r.old_smile) # change nickname key to new smile
+            user.pending_reactions = user.pending_reactions.replace(r.old_smile, r.new_smile)
+            session.add(user)
+        
+        quests = session.exec(select(Quest)).all()
+        for quest in quests:
+            quest.condition_value = quest.condition_value.replace(r.old_smile, r.new_smile)
+            if quest.reward_misc is not None:
+                quest.reward_misc = quest.reward_misc.replace(r.old_smile, r.new_smile) # reward misc unused right now but feels right to add this
+            session.add(quest) 
+
+        skilltree_nodes = session.exec(select(SkilltreeNode)).all()
+        for skilltree_node in skilltree_nodes:
+            skilltree_node.chem_rewards = skilltree_node.chem_rewards.replace(r.old_smile, r.new_smile)
+            session.add(skilltree_node)
+
+    # todo: gibt grad noch schwerwiegende fehler, erst wenn ich mir sicher bin, dass alles funktioniert mehr chemikalien ändern
+    # todo: muss alle quest rewards recovern (sollte wsl change quest funktion adden weil man will ja auch manchmal reward punkte ändern können und so)
+
+    # todo: wenn hiermit fertig dann an die arbeit machen alle !chemikalien zu " zu ändern (und chemikalien hübscher machen die momentan komische salze sind und hydrate umändern)
     session.commit()
     return
 
@@ -288,6 +329,23 @@ def submit_quest(admin_token: Annotated[str | None, Cookie()], r: SubmitQuestReq
     session.commit()
     return SubmitQuestResponse(success=True)
 
+@app.post("/change-quest")
+def change_quest(admin_token: Annotated[str | None, Cookie()], r: ChangeQuestRequest, session: SessionDep) -> ChangeQuestResponse:
+    admin = session.get(AdminToken, hashlib.sha256(admin_token.encode('utf-8')).hexdigest())
+    if admin is None:
+        raise HTTPException(status_code=404, detail="Admin token invalid")
+    quest = session.get(Quest, r.id)
+    if quest is None:
+        raise HTTPException(status_code=404, detail="Quest not found")
+    quest.description = r.description
+    quest.reward_skillpoints = r.reward_skillpoints
+    quest.reward_misc = r.reward_misc
+    quest.condition_type = r.condition_type
+    quest.condition_value = r.condition_value
+    session.add(quest)
+    session.commit()
+    return ChangeQuestResponse(success=True)
+
 @app.post("/submitskilltreenode")
 def submit_skilltreenode(admin_token: Annotated[str | None, Cookie()], r: SubmitSkilltreeNodeRequest, session: SessionDep) -> SubmitSkilltreeNodeResponse:
     admin = session.get(AdminToken, hashlib.sha256(admin_token.encode('utf-8')).hexdigest()) 
@@ -368,7 +426,7 @@ def validatetoken(token: Annotated[str | None, Cookie()], session: SessionDep) -
         return ValidTokenResponse(valid=False)
     return ValidTokenResponse(valid=True, name=user.name)
 
-@app.get("/admin-validatetoken")
+@app.get("/admin-validatetoken") # todo: delete old expired tokens
 def admin_validatetoken(admin_token: Annotated[str | None, Cookie()], session: SessionDep) -> ValidTokenResponse:
     admin = session.get(AdminToken, hashlib.sha256(admin_token.encode('utf-8')).hexdigest()) 
     if admin is None:
