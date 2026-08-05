@@ -190,10 +190,6 @@ def change_default_chemical_identifiers(admin_token: Annotated[str | None, Cooki
             skilltree_node.chem_rewards = skilltree_node.chem_rewards.replace(r.old_smile, r.new_smile)
             session.add(skilltree_node)
 
-    # todo: gibt grad noch schwerwiegende fehler, erst wenn ich mir sicher bin, dass alles funktioniert mehr chemikalien ändern
-    # todo: muss alle quest rewards recovern (sollte wsl change quest funktion adden weil man will ja auch manchmal reward punkte ändern können und so)
-
-    # todo: wenn hiermit fertig dann an die arbeit machen alle !chemikalien zu " zu ändern (und chemikalien hübscher machen die momentan komische salze sind und hydrate umändern)
     session.commit()
     return
 
@@ -531,8 +527,7 @@ def get_pending_reactions(token: Annotated[str | None, Cookie()], session: Sessi
     new_upr = []
     if upr != "":
         for pr in upr.split("|"):
-            parts = pr.split("!") # huge problem double usage of ! in pending reactions string and in supressing smiles representation
-            # todo: fix
+            parts = pr.split("!")
             inputs = parts[0].split(";")
             
             # check if reaction has been resolved
