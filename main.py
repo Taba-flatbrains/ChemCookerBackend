@@ -1,9 +1,13 @@
+import os
 from typing import Annotated, Union, List, Optional, Dict
 from uuid import uuid4
 from NetTypes import *
 from Quest import *
 from Chemical import STR_START_CHEMS, Chemical
-from hidden_constants import ADMIN_PASSWORD_HASH
+
+from dotenv import load_dotenv
+load_dotenv()  # Load environment variables from .env file
+ADMIN_PASSWORD_HASH = os.getenv("ADMIN_PASSWORD_HASH")
 
 from fastapi import FastAPI, Depends, Cookie, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
