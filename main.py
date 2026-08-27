@@ -9,6 +9,9 @@ from dotenv import load_dotenv
 load_dotenv()  # Load environment variables from .env file
 ADMIN_PASSWORD_HASH = os.getenv("ADMIN_PASSWORD_HASH")
 
+in_production = os.getenv("PRODUCTION", "true").lower() != "false"
+
+
 from fastapi import FastAPI, Depends, Cookie, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Field, Session, SQLModel, create_engine, select, ARRAY, Field, Column, String, select, JSON
@@ -19,19 +22,32 @@ from passlib.hash import pbkdf2_sha256
 
 app = FastAPI()
 
-origins = [
-    "http://localhost:4200",
-    "http://localhost:34475", # for testing purposes
-    "http://10.183.109.33:4200", # henni pc
-]
+if not in_production:
+    origins = [
+        "http://localhost:4200",
+        "http://localhost:34475", # for testing purposes
+        "http://10.183.109.33:4200", # henni pc
+    ]
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    origins = [
+        "https://chemcookerfrontend-production.up.railway.app/",
+    ]
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 # tables
 class User(SQLModel, table=True):
