@@ -38,8 +38,8 @@ if not in_production:
     )
 else:
     origins = [
-        "https://chemcookerfrontend-production.up.railway.app",
-        "http://chemcookerfrontend-production.up.railway.app"
+        "https://chemcooker.up.railway.app",
+        "http://chemcooker.up.railway.app"
     ]
 
     app.add_middleware(
