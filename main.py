@@ -137,7 +137,7 @@ def signup(r: SignupRequest, session: SessionDep, response : Response) -> Signup
         nicknames={}
     ))
     session.commit()
-    #response.set_cookie(key="token", value=token, httponly=False, samesite="strict", expires=60*60*24*7)
+    response.set_cookie(key="token", value=token, httponly=False, samesite="strict", expires=60*60*24*7, domain=DOMAIN)
     return SignupResponse(success=True, name=r.username, token=token)
 
 @app.post("/login")
@@ -151,7 +151,7 @@ def login(r: LoginRequest, session: SessionDep, response:Response) -> LoginRespo
         user.token = hashlib.sha256(token.encode('utf-8')).hexdigest()
         session.add(user) # is this correct? or does user get doubled
         session.commit()
-        #response.set_cookie(key="token", value=token, httponly=False, samesite="strict", expires=60*60*24*7, domain=DOMAIN)
+        response.set_cookie(key="token", value=token, httponly=False, samesite="strict", expires=60*60*24*7, domain=DOMAIN)
         return LoginResponse(token=token, name=user.name, success=True)
     return LoginResponse(token="", success=False)
 
@@ -162,7 +162,7 @@ def admin_login(r: AdminLoginRequest, session: SessionDep, response:Response) ->
     token = str(uuid4())
     session.add(AdminToken(token=hashlib.sha256(token.encode('utf-8')).hexdigest()))
     session.commit()
-    #response.set_cookie(key="admin_token", value=token, httponly=False, samesite="strict", expires=60*60*24*7)
+    response.set_cookie(key="admin_token", value=token, httponly=False, samesite="strict", expires=60*60*24*7, domain=DOMAIN)
     return AdminLoginResponse(success=True, token=token)
 
 @app.post("/set-default-chemical-identifiers")  
