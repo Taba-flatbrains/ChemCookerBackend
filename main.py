@@ -8,6 +8,7 @@ from Chemical import STR_START_CHEMS, Chemical
 from dotenv import load_dotenv
 load_dotenv()  # Load environment variables from .env file
 ADMIN_PASSWORD_HASH = os.getenv("ADMIN_PASSWORD_HASH")
+DOMAIN = os.getenv("DOMAIN", "localhost")
 
 in_production = os.getenv("PRODUCTION", "true").lower() != "false"
 
@@ -150,7 +151,7 @@ def login(r: LoginRequest, session: SessionDep, response:Response) -> LoginRespo
         user.token = hashlib.sha256(token.encode('utf-8')).hexdigest()
         session.add(user) # is this correct? or does user get doubled
         session.commit()
-        #response.set_cookie(key="token", value=token, httponly=False, samesite="strict", expires=60*60*24*7)
+        response.set_cookie(key="token", value=token, httponly=False, samesite="strict", expires=60*60*24*7, domain=DOMAIN)
         return LoginResponse(token=token, name=user.name, success=True)
     return LoginResponse(token="", success=False)
 
