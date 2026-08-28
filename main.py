@@ -12,7 +12,7 @@ ADMIN_PASSWORD_HASH = os.getenv("ADMIN_PASSWORD_HASH")
 in_production = os.getenv("PRODUCTION", "true").lower() != "false"
 
 
-from fastapi import FastAPI, Depends, Cookie, HTTPException
+from fastapi import FastAPI, Depends, Cookie, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Field, Session, SQLModel, create_engine, select, ARRAY, Field, Column, String, select, JSON
 from pydantic import BaseModel
@@ -123,7 +123,7 @@ SessionDep = Annotated[Session, Depends(get_session)]
 
 # post requests
 @app.post("/signup")
-def signup(r: SignupRequest, session: SessionDep) -> SignupResponse:
+def signup(r: SignupRequest, session: SessionDep, response : Response) -> SignupResponse:
     token = str(uuid4())
     session.add(User(
         name=r.username,
@@ -136,10 +136,11 @@ def signup(r: SignupRequest, session: SessionDep) -> SignupResponse:
         nicknames={}
     ))
     session.commit()
+    response.set_cookie(key="token", value=token, httponly=False, samesite="strict", expires=60*60*24*7)
     return SignupResponse(success=True, name=r.username, token=token)
 
 @app.post("/login")
-def login(r: LoginRequest, session: SessionDep) -> LoginResponse:
+def login(r: LoginRequest, session: SessionDep, response:Response) -> LoginResponse:
     user = session.get(User, r.email)
     if (user is None):
         return LoginResponse(token="", success=False)
@@ -149,16 +150,18 @@ def login(r: LoginRequest, session: SessionDep) -> LoginResponse:
         user.token = hashlib.sha256(token.encode('utf-8')).hexdigest()
         session.add(user) # is this correct? or does user get doubled
         session.commit()
+        response.set_cookie(key="token", value=token, httponly=False, samesite="strict", expires=60*60*24*7)
         return LoginResponse(token=token, name=user.name, success=True)
     return LoginResponse(token="", success=False)
 
 @app.post("/admin-login")
-def admin_login(r: AdminLoginRequest, session: SessionDep) -> AdminLoginResponse:
+def admin_login(r: AdminLoginRequest, session: SessionDep, response:Response) -> AdminLoginResponse:
     if not pbkdf2_sha256.verify(r.password, ADMIN_PASSWORD_HASH):
         return AdminLoginResponse(success=False)
     token = str(uuid4())
     session.add(AdminToken(token=hashlib.sha256(token.encode('utf-8')).hexdigest()))
     session.commit()
+    response.set_cookie(key="admin_token", value=token, httponly=False, samesite="strict", expires=60*60*24*7)
     return AdminLoginResponse(success=True, token=token)
 
 @app.post("/set-default-chemical-identifiers")  
