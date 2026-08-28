@@ -151,7 +151,7 @@ def login(r: LoginRequest, session: SessionDep, response:Response) -> LoginRespo
         user.token = hashlib.sha256(token.encode('utf-8')).hexdigest()
         session.add(user) # is this correct? or does user get doubled
         session.commit()
-        response.set_cookie(key="token", value=token, httponly=False, samesite="strict", expires=60*60*24*7, domain=DOMAIN)
+        #response.set_cookie(key="token", value=token, httponly=False, samesite="strict", expires=60*60*24*7, domain=DOMAIN)
         return LoginResponse(token=token, name=user.name, success=True)
     return LoginResponse(token="", success=False)
 
