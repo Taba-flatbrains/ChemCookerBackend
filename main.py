@@ -176,15 +176,17 @@ def change_default_chemical_identifiers(admin_token: Annotated[str | None, Cooki
         raise HTTPException(status_code=404, detail="Admin token invalid")
     if r.old_smile == "":
         raise HTTPException(status_code=402, detail="Old smile empty")
+    
+    session.delete(session.get(ChemicalDefaultIdentifiers, r.old_smile))
     session.add(ChemicalDefaultIdentifiers(smile=r.new_smile, iupac=r.new_iupac, nickname=r.new_nickname))
 
     # todo: change smile in all places
     if r.old_smile != r.new_smile:
-        session.delete(session.get(ChemicalDefaultIdentifiers, r.old_smile))
-
         reactions = session.exec(select(Reaction).where((Reaction.inputs.like(f"%{r.old_smile}%")) | (Reaction.outputs.like(f"%{r.old_smile}%")))).all()
         for reaction in reactions:
             reaction.inputs = reaction.inputs.replace(r.old_smile, r.new_smile)
+            # sort reaction inputs
+            reaction.inputs = ";".join(sorted(reaction.inputs.split(";")))
             reaction.outputs = reaction.outputs.replace(r.old_smile, r.new_smile)
             session.add(reaction)
         
