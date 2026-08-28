@@ -122,7 +122,7 @@ SessionDep = Annotated[Session, Depends(get_session)]
 
 
 # post requests
-@app.post("/signup/")
+@app.post("/signup")
 def signup(r: SignupRequest, session: SessionDep) -> SignupResponse:
     token = str(uuid4())
     session.add(User(
@@ -138,7 +138,7 @@ def signup(r: SignupRequest, session: SessionDep) -> SignupResponse:
     session.commit()
     return SignupResponse(success=True, name=r.username, token=token)
 
-@app.post("/login/")
+@app.post("/login")
 def login(r: LoginRequest, session: SessionDep) -> LoginResponse:
     user = session.get(User, r.email)
     if (user is None):
