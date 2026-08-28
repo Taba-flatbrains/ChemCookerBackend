@@ -1,3 +1,4 @@
+import json
 import os
 from typing import Annotated, Union, List, Optional, Dict
 from uuid import uuid4
@@ -471,6 +472,8 @@ def getAvailableChems(token: Annotated[str | None, Cookie()], session: SessionDe
 
     # change nickname
     nicknames = user.nicknames
+    if isinstance(nicknames, str): # okish fix for error when using postgres instead of sqlite
+        nicknames = json.loads(nicknames)
     for nickname_key in nicknames.keys(): # todo: add error catching (if nickname is set for chemical not obtained)
         chemicals[smiles.index(nickname_key)].nickname = nicknames[nickname_key] # ultra inefficient should change later
 
