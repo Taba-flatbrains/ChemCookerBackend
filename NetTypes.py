@@ -6,6 +6,7 @@ class SignupRequest(BaseModel):
     username: str
     email: str
     password: str
+    difficulty: int # not implemented yet
 class SignupResponse(BaseModel):
     success: bool
     token: str
@@ -22,6 +23,7 @@ class LoginResponse(BaseModel):
 class ValidTokenResponse(BaseModel):
     valid: bool
     name: Optional[str] = None
+    temp_account: Optional[bool] = None
 
 class AvailableChemsResponse(BaseModel):
     chemicals: list[dict]
@@ -122,3 +124,20 @@ class GetPendingReactionsResponse(BaseModel):
 
 class AdminGetPendingReactionsResponse(BaseModel):
     pending_reactions : list[list[str]]
+
+class CreateTempAccountRequest(BaseModel):
+    difficulty : int # not implemented yet
+
+class CreateTempAccountResponse(BaseModel):
+    success : bool
+    token : str
+    name : str
+
+class UpgradeAccountPermanentRequest(BaseModel):
+    email : str
+    temp_account_name : str
+    username : str
+    password : str
+class UpgradeAccountPermanentResponse(BaseModel):
+    success : bool
+    name : Optional[str] = None

@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 import json
 import os
 from typing import Annotated, Union, List, Optional, Dict
@@ -16,6 +17,7 @@ in_production = os.getenv("PRODUCTION", "true").lower() != "false"
 
 from fastapi import FastAPI, Depends, Cookie, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi_utils.tasks import repeat_every
 from sqlmodel import Field, Session, SQLModel, create_engine, select, ARRAY, Field, Column, String, select, JSON
 from pydantic import BaseModel
 import hashlib
@@ -67,6 +69,7 @@ class User(SQLModel, table=True):
     token: Optional[str] = None
     completed_quests: str = "" # string of quest ids seperated by ;
     pending_reactions: str = "" # smile1;smiles2;...!temp!uv    seperated by | for multiple pending reactions
+    expire_date: Optional[str] = None # not none when temporary account
 
 class AdminToken(SQLModel, table=True):
     token: str = Field(primary_key=True) # todo: set expire date
@@ -124,10 +127,19 @@ def get_session():
 
 SessionDep = Annotated[Session, Depends(get_session)]
 
-
+# background tasks
+@app.on_event('startup') # deprecated but I dont care :/
+@repeat_every(seconds=600)
+async def clean_up():
+    # delete expired temporary accounts
+    with Session(engine) as session:
+        expired_users = session.exec(select(User).where(User.expire_date < datetime.now().isoformat())).all()
+        for user in expired_users:
+            session.delete(user)
+        session.commit()
 
 # post requests
-@app.post("/signup")
+@app.post("/signup") # todo: add difficulty on signup (and add option to change difficulty later, reset account on difficulty change)
 def signup(r: SignupRequest, session: SessionDep, response : Response) -> SignupResponse:
     token = str(uuid4())
     session.add(User(
@@ -143,6 +155,48 @@ def signup(r: SignupRequest, session: SessionDep, response : Response) -> Signup
     session.commit()
     response.set_cookie(key="token", value=token, httponly=False, samesite="strict", expires=60*60*24*7, domain=DOMAIN)
     return SignupResponse(success=True, name=r.username, token=token)
+
+@app.post("/create_temp_account")
+def create_temp_account(r: CreateTempAccountRequest, session: SessionDep, response: Response) -> CreateTempAccountResponse:
+    token = str(uuid4())
+    expire_date = (datetime.now() + timedelta(days=1)).isoformat()
+    random_username = "User " + str(uuid4())[:8]  # Generate a random username
+    session.add(User(
+        name=random_username,
+        email=str(uuid4()),  # Generate a random email
+        password="", # check: pbkdf2_sha256.verify("toomanysecrets", hash)
+        skillpoints=0,
+        skilltree="1",
+        unlocked_chemicals=STR_START_CHEMS,
+        token=hashlib.sha256(token.encode('utf-8')).hexdigest(),
+        nicknames={},
+        expire_date=expire_date
+    ))
+    session.commit()
+    response.set_cookie(key="token", value=token, httponly=False, samesite="strict", expires=60*60*24*7, domain=DOMAIN)
+    return CreateTempAccountResponse(success=True, name=random_username, token=token)
+
+@app.post("/upgrade_account_permanent") # todo: change in frontend that when signup is clicked on temporary account, the user is redirected to this endpoint with the temp account name prefilled
+def upgrade_account_permanent(r: UpgradeAccountPermanentRequest, token: Annotated[str | None, Cookie()], session: SessionDep) -> UpgradeAccountPermanentResponse:
+    user = session.exec(select(User).where(User.token == hashlib.sha256(token.encode('utf-8')).hexdigest())).one() # if no error is thrown session is valid
+    if (user is None):
+        return UpgradeAccountPermanentResponse(success=False)
+    if (user.name != r.temp_account_name):
+        return UpgradeAccountPermanentResponse(success=False)
+    session.add(User(
+        name=r.username,
+        email=r.email,
+        password=pbkdf2_sha256.hash(r.password),
+        skillpoints=user.skillpoints,
+        skilltree=user.skilltree,
+        unlocked_chemicals=user.unlocked_chemicals,
+        token=user.token,
+        nicknames=user.nicknames,
+        expire_date=None
+    ))
+    session.delete(user) # delete temporary account
+    session.commit()
+    return UpgradeAccountPermanentResponse(success=True, name=r.username)
 
 @app.post("/login")
 def login(r: LoginRequest, session: SessionDep, response:Response) -> LoginResponse:
@@ -454,7 +508,7 @@ def validatetoken(token: Annotated[str | None, Cookie()], session: SessionDep) -
         user = session.exec(select(User).where(User.token == hashlib.sha256(token.encode('utf-8')).hexdigest())).one() # if no error is thrown session is valid
     except:
         return ValidTokenResponse(valid=False)
-    return ValidTokenResponse(valid=True, name=user.name)
+    return ValidTokenResponse(valid=True, name=user.name, temp_account=user.expire_date is not None) 
 
 @app.get("/admin-validatetoken") # todo: delete old expired tokens
 def admin_validatetoken(admin_token: Annotated[str | None, Cookie()], session: SessionDep) -> ValidTokenResponse:
