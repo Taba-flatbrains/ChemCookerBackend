@@ -28,8 +28,8 @@ app = FastAPI()
 
 if not in_production:
     origins = [
-        "http://localhost:4200",
-        "http://localhost:34475", # for testing purposes
+        "http://localhost:8080", # admin frontend local
+        "http://localhost:34475", # frontend local
         "http://10.183.109.33:4200", # henni pc
     ]
 
@@ -69,6 +69,7 @@ class User(SQLModel, table=True):
     token: Optional[str] = None
     completed_quests: str = "" # string of quest ids seperated by ;
     pending_reactions: str = "" # smile1;smiles2;...!temp!uv    seperated by | for multiple pending reactions
+    difficulty : int = 0 
     expire_date: Optional[str] = None # not none when temporary account
 
 class AdminToken(SQLModel, table=True):
@@ -94,6 +95,7 @@ class Quest(SQLModel, table=True):
     reward_misc: Optional[str] = None # maybe special chemical or so
     condition_type: str # "obtain_chemical", ...
     condition_value: str # smile for "obtain_chemical", ...
+    difficulty: int
 
 class SkilltreeNode(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
@@ -150,6 +152,7 @@ def signup(r: SignupRequest, session: SessionDep, response : Response) -> Signup
         skilltree="1", 
         unlocked_chemicals=STR_START_CHEMS,
         token=hashlib.sha256(token.encode('utf-8')).hexdigest(), # todo: add expire date
+        difficulty=r.difficulty,
         nicknames={}
     ))
     session.commit()
@@ -170,13 +173,14 @@ def create_temp_account(r: CreateTempAccountRequest, session: SessionDep, respon
         unlocked_chemicals=STR_START_CHEMS,
         token=hashlib.sha256(token.encode('utf-8')).hexdigest(),
         nicknames={},
+        difficulty=r.difficulty,
         expire_date=expire_date
     ))
     session.commit()
     response.set_cookie(key="token", value=token, httponly=False, samesite="strict", expires=60*60*24*7, domain=DOMAIN)
     return CreateTempAccountResponse(success=True, name=random_username, token=token)
 
-@app.post("/upgrade_account_permanent") # todo: change in frontend that when signup is clicked on temporary account, the user is redirected to this endpoint with the temp account name prefilled
+@app.post("/upgrade_account_permanent")
 def upgrade_account_permanent(r: UpgradeAccountPermanentRequest, token: Annotated[str | None, Cookie()], session: SessionDep) -> UpgradeAccountPermanentResponse:
     user = session.exec(select(User).where(User.token == hashlib.sha256(token.encode('utf-8')).hexdigest())).one() # if no error is thrown session is valid
     if (user is None):
@@ -192,11 +196,29 @@ def upgrade_account_permanent(r: UpgradeAccountPermanentRequest, token: Annotate
         unlocked_chemicals=user.unlocked_chemicals,
         token=user.token,
         nicknames=user.nicknames,
-        expire_date=None
+        expire_date=None,
+        difficulty=user.difficulty
     ))
     session.delete(user) # delete temporary account
     session.commit()
     return UpgradeAccountPermanentResponse(success=True, name=r.username)
+
+@app.post("/change-difficulty") # todo: implement in frontend, check if actually works as intended
+def change_difficulty(token: Annotated[str | None, Cookie()], r: ChangeDifficultyRequest, session: SessionDep) -> ChangeDifficultyResponse:
+    try:
+        user = session.exec(select(User).where(User.token == hashlib.sha256(token.encode('utf-8')).hexdigest())).one() # if no error is thrown session is valid
+    except:
+        raise HTTPException(status_code=404, detail="User not found, login and signin seemed to have failed / token missing")
+    if (user.difficulty == r.difficulty):
+        return ChangeDifficultyResponse(success=False)
+    user.difficulty = r.difficulty
+    user.unlocked_chemicals = STR_START_CHEMS # reset unlocked chemicals
+    user.completed_quests = "" # reset completed quests
+    user.skillpoints = 0 # reset skillpoints
+    user.skilltree = "1" # reset skilltree
+    session.add(user)
+    session.commit()
+    return ChangeDifficultyResponse(success=True)
 
 @app.post("/login")
 def login(r: LoginRequest, session: SessionDep, response:Response) -> LoginResponse:
@@ -374,7 +396,8 @@ def _cook_internal(user: User, r: CookRequest, session: SessionDep, shouldAddPen
                     new_chems.append(chem)
                 completed_quests = session.exec(select(Quest).where(
                     (Quest.condition_type == QuestConditionTypes.OBTAIN_CHEMICAL) & 
-                    (Quest.condition_value == chem)
+                    (Quest.condition_value == chem) & 
+                    (Quest.difficulty == user.difficulty)
                 )).all() 
                 for quest in completed_quests:
                     if (str(quest.id) in already_completed_quests):
@@ -408,7 +431,8 @@ def submit_quest(admin_token: Annotated[str | None, Cookie()], r: SubmitQuestReq
         reward_skillpoints=r.reward_skillpoints,
         reward_misc=r.reward_misc,
         condition_type=r.condition_type,
-        condition_value=r.condition_value
+        condition_value=r.condition_value,
+        difficulty=r.difficulty
     ))
     session.commit()
     return SubmitQuestResponse(success=True)
@@ -426,6 +450,7 @@ def change_quest(admin_token: Annotated[str | None, Cookie()], r: ChangeQuestReq
     quest.reward_misc = r.reward_misc
     quest.condition_type = r.condition_type
     quest.condition_value = r.condition_value
+    quest.difficulty = r.difficulty
     session.add(quest)
     session.commit()
     return ChangeQuestResponse(success=True)
@@ -562,8 +587,8 @@ def getAllQuests(token: Annotated[str | None, Cookie()], session: SessionDep) ->
         completed_quests = user.completed_quests.split(";") if user.completed_quests != "" and not user.completed_quests is None else []
     except:
         completed_quests = []
-    
-    all_quests = session.exec(select(Quest)).all()
+
+    all_quests = session.exec(select(Quest).where(Quest.difficulty == user.difficulty)).all()
     return AllQuestsResponse(
         quests=[{
             "id": quest.id,

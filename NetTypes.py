@@ -76,6 +76,7 @@ class SubmitQuestRequest(BaseModel):
     reward_misc: Optional[str] = None # maybe special chemical or so
     condition_type: str # "obtain_chemical", ...
     condition_value: str # smile for "obtain_chemical", ...
+    difficulty: int
 class SubmitQuestResponse(BaseModel):
     success: bool
 
@@ -86,6 +87,7 @@ class ChangeQuestRequest(BaseModel):
     reward_misc: Optional[str] = None # maybe special chemical or so
     condition_type: str # "obtain_chemical", ...
     condition_value: str # smile for "obtain_chemical", ...
+    difficulty: int
 class ChangeQuestResponse(BaseModel):   
     success: bool
 
@@ -141,3 +143,8 @@ class UpgradeAccountPermanentRequest(BaseModel):
 class UpgradeAccountPermanentResponse(BaseModel):
     success : bool
     name : Optional[str] = None
+
+class ChangeDifficultyRequest(BaseModel):
+    difficulty : int
+class ChangeDifficultyResponse(BaseModel):
+    success : bool
