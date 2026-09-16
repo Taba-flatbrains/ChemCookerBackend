@@ -566,7 +566,7 @@ def getChemsFromSmilesList(smiles: List[str], session: SessionDep) -> List[Chemi
     for smile in smiles:
         default_identifiers.append(session.get(ChemicalDefaultIdentifiers, smile))
         if (default_identifiers[-1] is None):
-            default_identifiers[-1] = ChemicalDefaultIdentifiers(iupac=":(", nickname=":(")
+            default_identifiers[-1] = ChemicalDefaultIdentifiers(iupac="Missingno", nickname="Missingno")
     chemicals = [Chemical(smiles[i], default_identifiers[i].iupac, default_identifiers[i].nickname) for i in range(len(smiles))]
     return chemicals
 
