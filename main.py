@@ -73,7 +73,8 @@ class User(SQLModel, table=True):
     expire_date: Optional[str] = None # not none when temporary account
 
 class AdminToken(SQLModel, table=True):
-    token: str = Field(primary_key=True) # todo: set expire date
+    token: str = Field(primary_key=True)
+    expire_date: str
 
 class Reaction(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
@@ -140,8 +141,15 @@ async def clean_up():
             session.delete(user)
         session.commit()
 
+    # delete expired admin tokens
+    with Session(engine) as session:
+        expired_tokens = session.exec(select(AdminToken).where(AdminToken.expire_date < datetime.now().isoformat())).all()
+        for token in expired_tokens:
+            session.delete(token)
+        session.commit()
+
 # post requests
-@app.post("/signup") # todo: add difficulty on signup (and add option to change difficulty later, reset account on difficulty change)
+@app.post("/signup")
 def signup(r: SignupRequest, session: SessionDep, response : Response) -> SignupResponse:
     token = str(uuid4())
     session.add(User(
@@ -151,7 +159,7 @@ def signup(r: SignupRequest, session: SessionDep, response : Response) -> Signup
         skillpoints=0,
         skilltree="1", 
         unlocked_chemicals=STR_START_CHEMS,
-        token=hashlib.sha256(token.encode('utf-8')).hexdigest(), # todo: add expire date
+        token=hashlib.sha256(token.encode('utf-8')).hexdigest(), # todo: add token expire date
         difficulty=r.difficulty,
         nicknames={}
     ))
@@ -240,7 +248,7 @@ def admin_login(r: AdminLoginRequest, session: SessionDep, response:Response) ->
     if not pbkdf2_sha256.verify(r.password, ADMIN_PASSWORD_HASH):
         return AdminLoginResponse(success=False)
     token = str(uuid4())
-    session.add(AdminToken(token=hashlib.sha256(token.encode('utf-8')).hexdigest()))
+    session.add(AdminToken(token=hashlib.sha256(token.encode('utf-8')).hexdigest(), expire_date=(datetime.now() + timedelta(days=7)).isoformat()))
     session.commit()
     response.set_cookie(key="admin_token", value=token, httponly=False, samesite="strict", expires=60*60*24*7, domain=DOMAIN)
     return AdminLoginResponse(success=True, token=token)
@@ -250,7 +258,7 @@ def set_default_chemical_identifiers(admin_token: Annotated[str | None, Cookie()
     admin = session.get(AdminToken, hashlib.sha256(admin_token.encode('utf-8')).hexdigest()) # check for valid admin session
     if admin is None:
         raise HTTPException(status_code=404, detail="Admin token invalid")
-    session.add(ChemicalDefaultIdentifiers(smile=r.smile, iupac=r.iupac, nickname=r.nickname)) # todo: set option to override previous default identifier
+    session.add(ChemicalDefaultIdentifiers(smile=r.smile, iupac=r.iupac, nickname=r.nickname))
     session.commit()
     return
 
@@ -265,7 +273,6 @@ def change_default_chemical_identifiers(admin_token: Annotated[str | None, Cooki
     session.delete(session.get(ChemicalDefaultIdentifiers, r.old_smile))
     session.add(ChemicalDefaultIdentifiers(smile=r.new_smile, iupac=r.new_iupac, nickname=r.new_nickname))
 
-    # todo: change smile in all places
     if r.old_smile != r.new_smile:
         reactions = session.exec(select(Reaction).where((Reaction.inputs.like(f"%{r.old_smile}%")) | (Reaction.outputs.like(f"%{r.old_smile}%")))).all()
         for reaction in reactions:
@@ -460,7 +467,11 @@ def submit_skilltreenode(admin_token: Annotated[str | None, Cookie()], r: Submit
     admin = session.get(AdminToken, hashlib.sha256(admin_token.encode('utf-8')).hexdigest()) 
     if admin is None:
         raise HTTPException(status_code=404, detail="Admin token invalid")
-    # todo: check if a node already exists on x and y
+
+    existing_node = session.exec(select(SkilltreeNode).where(SkilltreeNode.x == r.x, SkilltreeNode.y == r.y)).one_or_none()
+    if existing_node is not None:
+        raise HTTPException(status_code=400, detail="Node already exists")
+
     neighbors = []
     for offset in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
         try:
