@@ -67,6 +67,7 @@ class User(SQLModel, table=True):
     unlocked_chemicals: str # string of smiles seperated by ;
     nicknames: Dict = Field(default_factory=dict, sa_column=Column(JSON)) # dict of smiles to nicknames
     token: Optional[str] = None
+    token_expire_date: Optional[str] = None
     completed_quests: str = "" # string of quest ids seperated by ;
     pending_reactions: str = "" # smile1;smiles2;...!temp!uv    seperated by | for multiple pending reactions
     difficulty : int = 0 
@@ -148,6 +149,15 @@ async def clean_up():
             session.delete(token)
         session.commit()
 
+    # delete expired user tokens
+    with Session(engine) as session:
+        expired_user_logins = session.exec(select(User).where(User.token_expire_date < datetime.now().isoformat())).all()
+        for user in expired_user_logins:
+            user.token = None
+            user.token_expire_date = None
+            session.add(user)
+        session.commit()
+
 # post requests
 @app.post("/signup")
 def signup(r: SignupRequest, session: SessionDep, response : Response) -> SignupResponse:
@@ -159,7 +169,8 @@ def signup(r: SignupRequest, session: SessionDep, response : Response) -> Signup
         skillpoints=0,
         skilltree="1", 
         unlocked_chemicals=STR_START_CHEMS,
-        token=hashlib.sha256(token.encode('utf-8')).hexdigest(), # todo: add token expire date
+        token=hashlib.sha256(token.encode('utf-8')).hexdigest(),
+        token_expire_date=(datetime.now() + timedelta(days=1)).isoformat(),
         difficulty=r.difficulty,
         nicknames={}
     ))
@@ -180,6 +191,7 @@ def create_temp_account(r: CreateTempAccountRequest, session: SessionDep, respon
         skilltree="1",
         unlocked_chemicals=STR_START_CHEMS,
         token=hashlib.sha256(token.encode('utf-8')).hexdigest(),
+        token_expire_date=expire_date,
         nicknames={},
         difficulty=r.difficulty,
         expire_date=expire_date
@@ -203,6 +215,7 @@ def upgrade_account_permanent(r: UpgradeAccountPermanentRequest, token: Annotate
         skilltree=user.skilltree,
         unlocked_chemicals=user.unlocked_chemicals,
         token=user.token,
+        token_expire_date=user.token_expire_date,
         nicknames=user.nicknames,
         expire_date=None,
         difficulty=user.difficulty
@@ -237,6 +250,7 @@ def login(r: LoginRequest, session: SessionDep, response:Response) -> LoginRespo
     if (pbkdf2_sha256.verify(r.password, hashed_pw)):
         token = str(uuid4())
         user.token = hashlib.sha256(token.encode('utf-8')).hexdigest()
+        user.token_expire_date = (datetime.now() + timedelta(days=7)).isoformat()
         session.add(user) # is this correct? or does user get doubled
         session.commit()
         response.set_cookie(key="token", value=token, httponly=False, samesite="strict", expires=60*60*24*7, domain=DOMAIN)
@@ -598,10 +612,11 @@ def getAllQuests(token: Annotated[str | None, Cookie()], session: SessionDep) ->
     try:
         user = session.exec(select(User).where(User.token == hashlib.sha256(token.encode('utf-8')).hexdigest())).one() # if no error is thrown session is valid
         completed_quests = user.completed_quests.split(";") if user.completed_quests != "" and not user.completed_quests is None else []
+        all_quests = session.exec(select(Quest).where(Quest.difficulty == user.difficulty)).all()
     except:
         completed_quests = []
+        all_quests = session.exec(select(Quest).where(Quest.difficulty == Difficulties.Normal)).all()
 
-    all_quests = session.exec(select(Quest).where(Quest.difficulty == user.difficulty)).all()
     return AllQuestsResponse(
         quests=[{
             "id": quest.id,
