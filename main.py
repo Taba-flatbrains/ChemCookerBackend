@@ -546,7 +546,7 @@ def validatetoken(token: Annotated[str | None, Cookie()], session: SessionDep) -
         return ValidTokenResponse(valid=False)
     return ValidTokenResponse(valid=True, name=user.name, temp_account=user.expire_date is not None) 
 
-@app.get("/admin-validatetoken") # todo: delete old expired tokens
+@app.get("/admin-validatetoken")
 def admin_validatetoken(admin_token: Annotated[str | None, Cookie()], session: SessionDep) -> ValidTokenResponse:
     admin = session.get(AdminToken, hashlib.sha256(admin_token.encode('utf-8')).hexdigest()) 
     if admin is None:
@@ -567,7 +567,9 @@ def getAvailableChems(token: Annotated[str | None, Cookie()], session: SessionDe
     nicknames = user.nicknames
     if isinstance(nicknames, str): # okish fix for error when using postgres instead of sqlite
         nicknames = json.loads(nicknames)
-    for nickname_key in nicknames.keys(): # todo: add error catching (if nickname is set for chemical not obtained)
+    for nickname_key in nicknames.keys():
+        if not nickname_key in smiles:
+            continue
         chemicals[smiles.index(nickname_key)].nickname = nicknames[nickname_key] # ultra inefficient should change later
 
     return {"chemicals":list([chemical.to_dict() for chemical in chemicals])}
