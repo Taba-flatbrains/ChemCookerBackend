@@ -541,7 +541,7 @@ def skilltreeUpgrade(token: Annotated[str | None, Cookie()], r: SkilltreeUpgrade
     user.skilltree = ";".join(unlocked_skilltree_nodes)
     session.commit()
     unlocked_chemicals = []
-    if node.chem_rewards is not None:
+    if node.chem_rewards is not None and node.chem_rewards != "":
         for chem_smile in node.chem_rewards.split(";"):
             user_chemicals = user.unlocked_chemicals.split(";")
             if chem_smile not in user_chemicals:
