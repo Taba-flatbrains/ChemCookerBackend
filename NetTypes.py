@@ -19,6 +19,7 @@ class LoginResponse(BaseModel):
     success: bool
     token: str
     name: Optional[str] = None
+    difficulty: Optional[int] = None
 
 class ValidTokenResponse(BaseModel):
     valid: bool

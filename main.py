@@ -254,7 +254,7 @@ def login(r: LoginRequest, session: SessionDep, response:Response) -> LoginRespo
         session.add(user) # is this correct? or does user get doubled
         session.commit()
         response.set_cookie(key="token", value=token, httponly=False, samesite="strict", expires=60*60*24*7, domain=DOMAIN)
-        return LoginResponse(token=token, name=user.name, success=True)
+        return LoginResponse(token=token, name=user.name, success=True, difficulty=user.difficulty)
     return LoginResponse(token="", success=False)
 
 @app.post("/admin-login")
