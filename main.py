@@ -581,6 +581,7 @@ def getAvailableChems(token: Annotated[str | None, Cookie()], session: SessionDe
     nicknames = user.nicknames
     if isinstance(nicknames, str): # okish fix for error when using postgres instead of sqlite
         nicknames = json.loads(nicknames)
+    print(nicknames)
     for nickname_key in nicknames.keys():
         if not nickname_key in smiles:
             continue
