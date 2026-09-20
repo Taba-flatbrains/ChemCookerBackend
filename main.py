@@ -558,7 +558,7 @@ def validatetoken(token: Annotated[str | None, Cookie()], session: SessionDep) -
         user = session.exec(select(User).where(User.token == hashlib.sha256(token.encode('utf-8')).hexdigest())).one() # if no error is thrown session is valid
     except:
         return ValidTokenResponse(valid=False)
-    return ValidTokenResponse(valid=True, name=user.name, temp_account=user.expire_date is not None) 
+    return ValidTokenResponse(valid=True, name=user.name, temp_account=user.expire_date is not None, difficulty=user.difficulty)
 
 @app.get("/admin-validatetoken")
 def admin_validatetoken(admin_token: Annotated[str | None, Cookie()], session: SessionDep) -> ValidTokenResponse:

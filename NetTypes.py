@@ -25,6 +25,7 @@ class ValidTokenResponse(BaseModel):
     valid: bool
     name: Optional[str] = None
     temp_account: Optional[bool] = None
+    difficulty: Optional[int] = None
 
 class AvailableChemsResponse(BaseModel):
     chemicals: list[dict]
