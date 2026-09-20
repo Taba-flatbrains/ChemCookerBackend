@@ -581,11 +581,13 @@ def getAvailableChems(token: Annotated[str | None, Cookie()], session: SessionDe
     nicknames = user.nicknames
     if isinstance(nicknames, str): # okish fix for error when using postgres instead of sqlite
         nicknames = json.loads(nicknames)
-    print(nicknames)
-    for nickname_key in nicknames.keys():
-        if not nickname_key in smiles:
-            continue
-        chemicals[smiles.index(nickname_key)].nickname = nicknames[nickname_key] # ultra inefficient should change later
+    if nicknames == "" or nicknames is None or nicknames == {}:
+        pass
+    else:
+        for nickname_key in nicknames.keys():
+            if not nickname_key in smiles:
+                continue
+            chemicals[smiles.index(nickname_key)].nickname = nicknames[nickname_key] # ultra inefficient should change later
 
     return {"chemicals":list([chemical.to_dict() for chemical in chemicals])}
 
