@@ -214,6 +214,7 @@ def upgrade_account_permanent(r: UpgradeAccountPermanentRequest, token: Annotate
         skillpoints=user.skillpoints,
         skilltree=user.skilltree,
         unlocked_chemicals=user.unlocked_chemicals,
+        completed_quests=user.completed_quests,
         token=user.token,
         token_expire_date=user.token_expire_date,
         nicknames=user.nicknames,
