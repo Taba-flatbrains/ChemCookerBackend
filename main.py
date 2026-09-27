@@ -331,9 +331,13 @@ def set_nickname(token: Annotated[str | None, Cookie()], r: SetNicknameRequest, 
         user = session.exec(select(User).where(User.token == hashlib.sha256(token.encode('utf-8')).hexdigest())).one() # if no error is thrown session is valid
     except:
         raise HTTPException(status_code=404, detail="User not found, login and signin seemed to have failed / token missing")
-    nicknames = user.nicknames.copy()
+    if isinstance(user.nicknames, str):
+        nicknames = user.nicknames.removeprefix("\"")
+        nicknames = nicknames.removesuffix("\"")
+        nicknames = json.loads(nicknames) # here only one json.loads for whatsever reason
+    else:
+        nicknames = user.nicknames.copy()
     nicknames[r.smile] = r.nickname
-    print(nicknames)
     user.nicknames = nicknames
     session.add(user)
     session.commit()
@@ -581,9 +585,14 @@ def getAvailableChems(token: Annotated[str | None, Cookie()], session: SessionDe
     # change nickname
     nicknames = user.nicknames
     if isinstance(nicknames, str): # okish fix for error when using postgres instead of sqlite
-        nicknames = json.loads(nicknames)
-    if nicknames == "" or nicknames is None or nicknames == {} or isinstance(nicknames, str): # if for some reason has failed
-        pass
+        if nicknames.startswith("\""):
+            nicknames.removeprefix("\"")
+            nicknames.removesuffix("\"")
+        nicknames = json.loads(json.loads(nicknames)) # need to do twice for some reason
+    if nicknames == "" or nicknames is None or isinstance(nicknames, str): # if for some reason has failed
+        print("nicknames error")
+        print(nicknames)
+        print(isinstance(nicknames, str))
     else:
         for nickname_key in nicknames.keys():
             if not nickname_key in smiles:
