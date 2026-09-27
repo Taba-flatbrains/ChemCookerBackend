@@ -588,7 +588,9 @@ def getAvailableChems(token: Annotated[str | None, Cookie()], session: SessionDe
         if nicknames.startswith("\""):
             nicknames.removeprefix("\"")
             nicknames.removesuffix("\"")
-        nicknames = json.loads(json.loads(nicknames)) # need to do twice for some reason
+        nicknames = json.loads(nicknames) 
+        if isinstance(nicknames, str):
+            json.loads(nicknames) # need to do twice for some reason
     if nicknames == "" or nicknames is None or isinstance(nicknames, str): # if for some reason has failed
         print("nicknames error")
         print(nicknames)
