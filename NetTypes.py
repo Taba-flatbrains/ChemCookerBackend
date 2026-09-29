@@ -52,6 +52,7 @@ class SubmitReactionRequest(BaseModel):
     outputs: list[dict]
     temp: int
     uv : bool
+    desc : Optional[str]
 
 class CookRequest(BaseModel):
     chemicals: list[str]

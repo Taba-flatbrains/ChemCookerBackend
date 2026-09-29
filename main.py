@@ -365,7 +365,8 @@ def submit_reaction(admin_token: Annotated[str | None, Cookie()], r: SubmitReact
         inputs=";".join([chem["smile"] for chem in r.inputs]),
         outputs=";".join([chem["smile"] for chem in r.outputs]),
         temp=r.temp,
-        uv=r.uv))
+        uv=r.uv,
+        description=r.desc))
     session.commit()
 
     return {"success": True}
