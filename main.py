@@ -631,6 +631,7 @@ def getAllQuests(token: Annotated[str | None, Cookie()], session: SessionDep) ->
     except:
         completed_quests = []
         all_quests = session.exec(select(Quest).where(Quest.difficulty == Difficulties.Normal)).all()
+    all_quests.sort(key=lambda quest: quest.id) # sort by id to match game progress
 
     return AllQuestsResponse(
         quests=[{
