@@ -352,12 +352,6 @@ def submit_reaction(admin_token: Annotated[str | None, Cookie()], r: SubmitReact
     if len(r.inputs) == 0 or len(r.inputs) != len(set([chem["smile"] for chem in r.inputs])):
         return {"success": False}# no chemicals or duplicate chemicals
     
-    #before sorting remove pending reactions that match this reaction (they are not sorted either)
-    pending_reaction = session.get(PendingReaction, ";".join([chem["smile"] for chem in r.inputs]))
-    if pending_reaction is not None:
-        session.delete(pending_reaction)
-        session.commit()
-
     #sort inputs and outputs to have a consistent order
     r.inputs.sort(key=lambda chem: chem["smile"])
     r.outputs.sort(key=lambda chem: chem["smile"])
@@ -367,6 +361,11 @@ def submit_reaction(admin_token: Annotated[str | None, Cookie()], r: SubmitReact
         temp=r.temp,
         uv=r.uv,
         description=r.desc))
+    session.commit()
+
+    # remove pending reactions that match this reaction
+    for pending_reaction in session.exec(select(PendingReaction).where(PendingReaction.inputs == ";".join([chem["smile"] for chem in r.inputs]))).all():
+        session.delete(pending_reaction)
     session.commit()
 
     return {"success": True}
@@ -397,7 +396,7 @@ def _cook_internal(user: User, r: CookRequest, session: SessionDep, shouldAddPen
     reactions = session.exec(select(Reaction).where(Reaction.inputs==";".join([chem for chem in r.chemicals]))).all()
     if len(reactions) == 0:
         if not shouldAddPending:
-            return CookResponse(success=False, products=[], new_chems=[], added_to_pending=True) # reaction does not exist
+            return CookResponse(success=False, products=[], new_chems=[], added_to_pending=True)
         if session.get(PendingReaction, ";".join([chem for chem in r.chemicals])) is None:
             session.add(PendingReaction(inputs=";".join([chem for chem in r.chemicals]))) # add if not already existing
             session.commit()
