@@ -68,6 +68,7 @@ class CookResponse(BaseModel):
     skillpoints_gained: int = 0
     quests_completed: list[int] = [] # quest ids
     added_to_pending: bool = False
+    description: Optional[str] = None # description of the reaction if it was found
 
 class AllQuestsResponse(BaseModel):
     quests: list[dict]
@@ -151,3 +152,6 @@ class ChangeDifficultyRequest(BaseModel):
     difficulty : int
 class ChangeDifficultyResponse(BaseModel):
     success : bool
+
+class GetCompletedReactionsResponse(BaseModel):
+    reactions : list[dict]

@@ -65,6 +65,7 @@ class User(SQLModel, table=True):
     skillpoints: int
     skilltree: str = "" # string of skilltree node ids seperated by ;
     unlocked_chemicals: str # string of smiles seperated by ;
+    completed_reactions: str = "" # string of reaction ids seperated by ;
     nicknames: Dict = Field(default_factory=dict, sa_column=Column(JSON)) # dict of smiles to nicknames
     token: Optional[str] = None
     token_expire_date: Optional[str] = None
@@ -238,6 +239,7 @@ def change_difficulty(token: Annotated[str | None, Cookie()], r: ChangeDifficult
     user.completed_quests = "" # reset completed quests
     user.skillpoints = 0 # reset skillpoints
     user.skilltree = "1" # reset skilltree
+    user.completed_reactions = "" # reset completed reactions
     session.add(user)
     session.commit()
     return ChangeDifficultyResponse(success=True)
@@ -434,6 +436,7 @@ def _cook_internal(user: User, r: CookRequest, session: SessionDep, shouldAddPen
                     already_completed_quests.append(str(quest.id))
             user.completed_quests = ";".join(already_completed_quests)
             user.unlocked_chemicals = ";".join(user_chemicals)
+            user.completed_reactions += str(reaction.id) + ";"
             session.add(user)
             session.commit()
             return CookResponse(success=True, 
@@ -443,7 +446,8 @@ def _cook_internal(user: User, r: CookRequest, session: SessionDep, shouldAddPen
                                 products=[chem.to_dict() for chem in getChemsFromSmilesList(output_chemicals, session)], 
                                 new_chems=[chem.to_dict() for chem in getChemsFromSmilesList(new_chems, session)],
                                 skillpoints_gained=skillpoints_gained,
-                                quests_completed=quests_completed)
+                                quests_completed=quests_completed,
+                                description=reaction.description)
 
     return CookResponse(success=False, products=[], new_chems=[]) # reaction not found
 
@@ -602,6 +606,28 @@ def getAvailableChems(token: Annotated[str | None, Cookie()], session: SessionDe
             chemicals[smiles.index(nickname_key)].nickname = nicknames[nickname_key] # ultra inefficient should change later
 
     return {"chemicals":list([chemical.to_dict() for chemical in chemicals])}
+
+@app.get("/completed-reactions")
+def getCompletedReactions(token: Annotated[str | None, Cookie()], session: SessionDep) -> GetCompletedReactionsResponse:
+    try:
+        user = session.exec(select(User).where(User.token == hashlib.sha256(token.encode('utf-8')).hexdigest())).one() # if no error is thrown session is valid
+    except:
+        raise HTTPException(status_code=404, detail="User not found, login and signin seemed to have failed / token missing")
+    completed_reactions = user.completed_reactions.split(";") if user.completed_reactions != "" and not user.completed_reactions is None else []
+    completed_reactions = [reaction_id for reaction_id in completed_reactions if reaction_id != ""]
+    reactions = []
+    for reaction_id in completed_reactions:
+        reaction = session.get(Reaction, int(reaction_id))
+        if reaction is not None:
+            reactions.append(reaction)
+    return {"reactions":[{
+        "id":reaction.id,
+        "inputs":reaction.inputs.split(";"),
+        "outputs":reaction.outputs.split(";"),
+        "temp":reaction.temp,
+        "uv":reaction.uv,
+        "description":reaction.description
+    } for reaction in reactions]}
 
 def getChemsFromSmilesList(smiles: List[str], session: SessionDep) -> List[Chemical]:
     default_identifiers : list[ChemicalDefaultIdentifiers] = []
